@@ -56,6 +56,8 @@ export interface Rect {
   y: number;
   width: number;
   height: number;
+  /** Corner radius of the source bubble; the viewer morphs from it. Defaults to width / 2. */
+  radius?: number;
 }
 
 export type ColorScheme = 'light' | 'dark';
@@ -140,6 +142,14 @@ export interface StoryTheme {
       icon: string;
       border: string;
       borderWidth: number;
+    };
+    card: {
+      width: number;
+      height: number;
+      radius: number;
+      ringWidth: number;
+      gap: number;
+      labelMarginTop: number;
     };
     suggested: {
       follow: { size: number; bg: string; icon: string; inset: number };

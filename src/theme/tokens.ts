@@ -73,6 +73,14 @@ const base: StoryTheme = {
       border: '#FFFFFF',
       borderWidth: 2,
     },
+    card: {
+      width: 100,
+      height: 150,
+      radius: 14,
+      ringWidth: 2.5,
+      gap: 3,
+      labelMarginTop: 8,
+    },
     suggested: {
       follow: { size: 32, bg: '#FFFFFF', icon: '#111111', inset: 6 },
       close: { size: 28, bg: 'rgba(0,0,0,0.55)', icon: '#FFFFFF', inset: 6 },
