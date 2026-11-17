@@ -85,6 +85,27 @@ describe('cubeTransform', () => {
       { translateX: 200 },
     ]);
   });
+  it('finger right (p > 0): faces pivot on the other edges', () => {
+    expect(cubeTransform(0.5, 400, 'outgoing', 1000).transform).toEqual([
+      { perspective: 1000 },
+      { translateX: -200 },
+      { rotateY: '45deg' },
+      { translateX: 200 },
+    ]);
+    expect(cubeTransform(0.5, 400, 'incoming', 1000).transform).toEqual([
+      { perspective: 1000 },
+      { translateX: 200 },
+      { rotateY: '-45deg' },
+      { translateX: -200 },
+    ]);
+  });
+  it('|p| = 1: incoming is flat and unshaded', () => {
+    for (const p of [-1, 1]) {
+      const c = cubeTransform(p, 400, 'incoming', 1000);
+      expect(c.transform[2]).toEqual({ rotateY: '0deg' });
+      expect(c.shadeOpacity).toBe(0);
+    }
+  });
 });
 
 describe('lerpRect', () => {
