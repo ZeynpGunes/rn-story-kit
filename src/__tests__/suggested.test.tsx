@@ -1,4 +1,9 @@
-import { fireEvent, render, screen } from '@testing-library/react-native';
+import {
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react-native';
 import { act } from '@testing-library/react-native';
 import { useState, type ReactNode } from 'react';
 import { StoryList } from '../list/StoryList';
@@ -78,6 +83,24 @@ describe('suggested bubbles (circle)', () => {
     expect(screen.queryByTestId('bubble-kate')).toBeNull();
     expect(screen.getByTestId('bubble-ada')).toBeTruthy();
   });
+
+  it.each(['circle', 'card'] as const)(
+    'badges are separate accessible buttons, not inside the bubble (%s)',
+    async (variant) => {
+      const onOpen = jest.fn();
+      await render(<StoryList variant={variant} />, {
+        wrapper: wrap([kate], { onOpen }),
+      });
+      const bubble = screen.getByTestId('bubble-kate');
+      for (const label of ['Follow Kate', "Don't suggest Kate"]) {
+        const btn = screen.getByRole('button', { name: label });
+        expect(btn.props.accessible).not.toBe(false);
+        expect(within(bubble).queryByLabelText(label)).toBeNull();
+        await fireEvent.press(btn);
+      }
+      expect(onOpen).not.toHaveBeenCalled();
+    }
+  );
 
   it('uses the normal bubble label after following', async () => {
     await render(<StoryList />, { wrapper: wrap([kate]) });

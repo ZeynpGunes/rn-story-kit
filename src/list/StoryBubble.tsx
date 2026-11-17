@@ -35,23 +35,39 @@ export function StoryBubble({
   const cardInset = card.ringWidth + card.gap;
   const cardOuterW = card.width + 2 * cardInset;
   const cardOuterRadius = card.radius + cardInset;
+  const cardOuterH = card.height + 2 * cardInset;
+  const itemW = isCard ? cardOuterW : theme.list.itemWidth;
+  const ringW = isCard
+    ? cardOuterW
+    : theme.list.bubble + 2 * (theme.ring.width + theme.ring.gap);
+  const ringH = isCard ? cardOuterH : ringW;
+  // Badges are siblings of the bubble Pressable (so a screen reader can reach
+  // them), placed in item coordinates over the ring.
+  const ringLeft = (itemW - ringW) / 2;
+  const closeSize = isCard ? suggested.close.size : suggested.circle.closeSize;
+  const followSize = isCard
+    ? suggested.follow.size
+    : suggested.circle.followSize;
+  const closeInset = isCard ? cardInset + suggested.close.inset : 0;
+  const followInset = isCard ? cardInset + suggested.follow.inset : 0;
+  const dismissStyle: ViewStyle = {
+    left: ringLeft + ringW - closeInset - closeSize,
+    top: closeInset,
+  };
+  const followStyle: ViewStyle = {
+    left: ringLeft + ringW - followInset - followSize,
+    top: ringH - followInset - followSize,
+  };
   const cardAddStyle: ViewStyle = {
     bottom: cardInset + suggested.follow.inset,
     alignSelf: 'center',
-  };
-  const cardDismissStyle: ViewStyle = {
-    top: cardInset + suggested.close.inset,
-    right: cardInset + suggested.close.inset,
-  };
-  const cardFollowStyle: ViewStyle = {
-    bottom: cardInset + suggested.follow.inset,
-    right: cardInset + suggested.follow.inset,
   };
   const isOwner = user.isOwner === true;
   const isEmptyOwner =
     isOwner && user.stories.length === 0 && config.ownerBubble.showAddWhenEmpty;
   const isSuggested = user.suggested === true && !isOwner;
   const showFollow = isSuggested && !followedIds.has(user.id);
+  const hidden = hiddenUserId === user.id;
   const label = isOwner ? config.strings.yourStory : user.name;
 
   const measure = useCallback(
@@ -102,76 +118,63 @@ export function StoryBubble({
         : bubbleLabel(config.strings, user.name, seen, user.stories.length);
 
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={a11y}
-      onPress={onPress}
-      testID={`bubble-${user.id}`}
-      style={[
-        styles.item,
-        {
-          width: isCard ? cardOuterW : theme.list.itemWidth,
-          alignSelf: 'flex-start',
-        },
-        hiddenUserId === user.id && styles.hidden,
-      ]}
-    >
-      <View ref={ringRef} collapsable={false} style={styles.ringWrap}>
-        {isCard ? (
-          <StoryCardRing
-            seen={seen}
-            showRing={!isEmptyOwner}
-            palette={user.ringColors ?? user.ringVariant}
-            cover={user.cover ?? user.avatar}
-            ringId={user.id}
-          />
-        ) : (
-          <StoryRing
-            size={theme.list.bubble}
-            seen={seen}
-            showRing={!isEmptyOwner}
-            palette={user.ringColors ?? user.ringVariant}
-            avatar={user.avatar}
-            ringId={user.id}
-          />
-        )}
-        {isEmptyOwner && (
-          <AddBadge
-            size={isCard ? suggested.follow.size : undefined}
-            style={isCard ? cardAddStyle : undefined}
-          />
-        )}
-        {isSuggested && (
-          <DismissButton
-            user={user}
-            size={isCard ? suggested.close.size : suggested.circle.closeSize}
-            style={isCard ? cardDismissStyle : styles.dismissCircle}
-          />
-        )}
-        {showFollow && (
-          <FollowButton
-            user={user}
-            size={isCard ? suggested.follow.size : suggested.circle.followSize}
-            style={isCard ? cardFollowStyle : styles.followCircle}
-          />
-        )}
-      </View>
-      <Text
-        numberOfLines={name.lines}
-        ellipsizeMode={name.ellipsizeMode}
-        style={{
-          marginTop: isCard ? card.labelMarginTop : name.marginTop,
-          maxWidth: isCard ? cardOuterW : name.maxWidth,
-          fontSize: name.size,
-          lineHeight: name.lineHeight,
-          fontWeight: name.weight as '400',
-          textAlign: name.align,
-          color: seen && !isEmptyOwner ? name.seenColor : name.color,
-        }}
+    <View style={[styles.wrap, { width: itemW }, hidden && styles.hidden]}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={a11y}
+        onPress={onPress}
+        testID={`bubble-${user.id}`}
+        style={[styles.item, { width: itemW }, hidden && styles.hidden]}
       >
-        {label}
-      </Text>
-    </Pressable>
+        <View ref={ringRef} collapsable={false} style={styles.ringWrap}>
+          {isCard ? (
+            <StoryCardRing
+              seen={seen}
+              showRing={!isEmptyOwner}
+              palette={user.ringColors ?? user.ringVariant}
+              cover={user.cover ?? user.avatar}
+              ringId={user.id}
+            />
+          ) : (
+            <StoryRing
+              size={theme.list.bubble}
+              seen={seen}
+              showRing={!isEmptyOwner}
+              palette={user.ringColors ?? user.ringVariant}
+              avatar={user.avatar}
+              ringId={user.id}
+            />
+          )}
+          {isEmptyOwner && (
+            <AddBadge
+              size={isCard ? suggested.follow.size : undefined}
+              style={isCard ? cardAddStyle : undefined}
+            />
+          )}
+        </View>
+        <Text
+          numberOfLines={name.lines}
+          ellipsizeMode={name.ellipsizeMode}
+          style={{
+            marginTop: isCard ? card.labelMarginTop : name.marginTop,
+            maxWidth: isCard ? cardOuterW : name.maxWidth,
+            fontSize: name.size,
+            lineHeight: name.lineHeight,
+            fontWeight: name.weight as '400',
+            textAlign: name.align,
+            color: seen && !isEmptyOwner ? name.seenColor : name.color,
+          }}
+        >
+          {label}
+        </Text>
+      </Pressable>
+      {isSuggested && (
+        <DismissButton user={user} size={closeSize} style={dismissStyle} />
+      )}
+      {showFollow && (
+        <FollowButton user={user} size={followSize} style={followStyle} />
+      )}
+    </View>
   );
 }
 
@@ -208,11 +211,10 @@ function AddBadge({ size, style }: { size?: number; style?: ViewStyle }) {
 }
 
 const styles = StyleSheet.create({
+  wrap: { alignSelf: 'flex-start' },
   item: { alignItems: 'center' },
   hidden: { opacity: 0 },
   ringWrap: { position: 'relative' },
-  dismissCircle: { top: 0, right: 0 },
-  followCircle: { bottom: 0, right: 0 },
   badge: {
     position: 'absolute',
     right: 0,
