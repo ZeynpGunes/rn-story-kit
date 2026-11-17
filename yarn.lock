@@ -9764,6 +9764,7 @@ __metadata:
     react-native-web: "npm:~0.21.4"
     react-native-worklets: "npm:0.13.1"
     sharp: "npm:^0.35.5"
+    thumbhash: "npm:0.1.1"
   languageName: unknown
   linkType: soft
 

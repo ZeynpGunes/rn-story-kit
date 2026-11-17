@@ -117,6 +117,19 @@ describe('app state', () => {
   });
 });
 
+describe('config', () => {
+  it('imageDurationMs: 2000 advances at 2000ms', async () => {
+    await open('U1', [ada(), bob(), cy()], {
+      config: { imageDurationMs: 2000 },
+    });
+    await display();
+    await advance(1900);
+    expect(label(1, 3)).toBeTruthy();
+    await advance(200);
+    expect(label(2, 3)).toBeTruthy();
+  });
+});
+
 describe('screen reader', () => {
   it('lets progress run to the end but does not advance by default', async () => {
     readerEnabled = true;

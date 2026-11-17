@@ -387,6 +387,23 @@ describe('custom header', () => {
   });
 });
 
+describe('config tapZoneRatio', () => {
+  it('0.5 makes x = 0.45 go to the previous story', async () => {
+    await open('U0', { config: { tapZoneRatio: 0.5 } });
+    await tapRight(); // a1 -> a2
+    await advance(50);
+    expectActive('Ada', 'Story 2 of 2');
+    const tap = createGestureController('story-tap');
+    await act(async () => {
+      tap.begin();
+      tap.activate({ x: WIDTH * 0.45 });
+      tap.end();
+    });
+    await advance(50);
+    expectActive('Ada', 'Story 1 of 2');
+  });
+});
+
 describe('programmatic user change', () => {
   it('two taps 50ms apart on the last story land on U1 story 0', async () => {
     await open('U0');

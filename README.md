@@ -5,7 +5,7 @@ Instagram-style stories for React Native
 ## Requirements
 
 - React Native New Architecture only. A development build is required (Expo Go is not supported, because of the native modules).
-- Minimum React Native is whatever the Reanimated 4 release you install supports: RN 0.78 with Reanimated 4.1, RN 0.86 to 0.88 with Reanimated 4.7. The example app runs RN 0.88 with Reanimated 4.7.1.
+- Requires the New Architecture and React Native Reanimated 4 (`react-native-worklets`). Your minimum React Native version is whatever your installed Reanimated 4 release supports; the example app runs React Native 0.88.1 with Reanimated 4.7.1.
 
 ## Installation
 
@@ -169,7 +169,20 @@ If your slot has its own interaction (a text input, a menu, a long press), call 
 - Palettes: `classic`, `ocean`, `sunset`, `mono`, `closeFriends`. Pick one with `theme.ring.palette`, per user with `ringVariant`, or pass your own stops with `ringColors`.
 - `lightTheme` and `darkTheme` hold every token (ring, progress bar, header, loading indicator, list). Override only what you need.
 - Use `StoryThemeProvider` to theme `StoryList` and `StoryRing` outside a provider.
-- Motion numbers (durations, springs, thresholds) live in `config.motion`.
+
+## Config
+
+Pass `config` to `StoryProvider` to change behaviour. Defaults are in `defaultConfig`.
+
+| Option | Default | Description |
+| --- | --- | --- |
+| `imageDurationMs` | `5000` | How long an image story shows before advancing. |
+| `tapZoneRatio` | `0.3` | Left share of the screen width where a tap goes to the previous story. |
+| `sortUnseenFirst` | `true` | Sort users with unseen stories before fully seen users. `false` keeps your order. |
+| `mediaErrorAdvanceMs` | `4000` | Wait after a media error before advancing to the next story. |
+| `autoAdvanceWithScreenReader` | `false` | Keep auto-advancing while a screen reader is on. |
+| `formatTime` | relative time | `(createdAt: number) => string`, replaces the header time label. |
+| `motion` | see `defaultConfig` | Durations, springs and gesture thresholds. |
 
 ## Seen storage
 
@@ -193,7 +206,7 @@ Both persistent adapters take an optional second argument, the storage key. Stor
 ## Accessibility
 
 - Bubbles, the close button and the progress bar have labels. The viewer announces the user and story position when it changes.
-- Stories do not auto-advance while a screen reader is on, so users move with the "Next story" and "Previous story" actions.
+- Stories do not auto-advance while a screen reader is on (unless `config.autoAdvanceWithScreenReader` is `true`), so users move with the "Next story" and "Previous story" actions.
 - With "Reduce Motion" on, the cube turn, drag-to-dismiss and open/close animations become short fades.
 
 ## Example app
