@@ -13,7 +13,7 @@ import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { StoryListVariant } from '../config';
 import type { Rect, StoryUser } from '../types';
 import { bubbleLabel, suggestedBubbleLabel } from '../viewer/a11y';
-import { DismissButton, FollowButton } from './SuggestedBadges';
+import { DismissButton, FollowButton, MIN_HIT } from './SuggestedBadges';
 import { StoryCardRing } from './StoryCardRing';
 import { StoryRing } from './StoryRing';
 
@@ -50,14 +50,27 @@ export function StoryBubble({
     : suggested.circle.followSize;
   const closeInset = isCard ? cardInset + suggested.close.inset : 0;
   const followInset = isCard ? cardInset + suggested.follow.inset : 0;
-  const dismissStyle: ViewStyle = {
-    left: ringLeft + ringW - closeInset - closeSize,
-    top: closeInset,
+  // Keep each badge's 44x44 touch area inside the item, or the platform
+  // drops touches that land outside the parent's bounds.
+  const itemH =
+    ringH + (isCard ? card.labelMarginTop : name.marginTop) + name.lineHeight;
+  const placeBadge = (left: number, top: number, size: number): ViewStyle => {
+    const slop = Math.max(0, (MIN_HIT - size) / 2);
+    return {
+      left: Math.min(Math.max(left, slop), itemW - size - slop),
+      top: Math.min(Math.max(top, slop), itemH - size - slop),
+    };
   };
-  const followStyle: ViewStyle = {
-    left: ringLeft + ringW - followInset - followSize,
-    top: ringH - followInset - followSize,
-  };
+  const dismissStyle = placeBadge(
+    ringLeft + ringW - closeInset - closeSize,
+    closeInset,
+    closeSize
+  );
+  const followStyle = placeBadge(
+    ringLeft + ringW - followInset - followSize,
+    ringH - followInset - followSize,
+    followSize
+  );
   const cardAddStyle: ViewStyle = {
     bottom: cardInset + suggested.follow.inset,
     alignSelf: 'center',
@@ -118,7 +131,10 @@ export function StoryBubble({
         : bubbleLabel(config.strings, user.name, seen, user.stories.length);
 
   return (
-    <View style={[styles.wrap, { width: itemW }, hidden && styles.hidden]}>
+    <View
+      testID={`bubble-wrap-${user.id}`}
+      style={[styles.wrap, { width: itemW }, hidden && styles.hidden]}
+    >
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={a11y}

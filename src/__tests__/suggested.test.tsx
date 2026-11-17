@@ -29,6 +29,8 @@ const kate: StoryUser = {
   stories: [story('k1'), story('k2'), story('k3')],
 };
 
+const flat = (style: unknown) => Object.assign({}, ...[style].flat(2));
+
 const wrap = (users: StoryUser[], extra = {}) =>
   function Wrapper({ children }: { children: ReactNode }) {
     return (
@@ -124,16 +126,32 @@ describe('suggested bubbles (circle)', () => {
     expect(onOpen).toHaveBeenCalledWith('kate');
   });
 
-  it('gives each badge a hit area of at least 44x44', async () => {
-    await render(<StoryList />, { wrapper: wrap([kate]) });
-    for (const label of ['Follow Kate', "Don't suggest Kate"]) {
-      const btn = screen.getByLabelText(label);
-      const style = Object.assign({}, ...[btn.props.style].flat(2));
-      const slop = btn.props.hitSlop;
-      expect(style.width + 2 * slop.left).toBeGreaterThanOrEqual(44);
-      expect(style.height + 2 * slop.top).toBeGreaterThanOrEqual(44);
+  it.each([
+    ['circle', 84, 75 + 6 + 16],
+    ['card', 111, 161 + 8 + 16],
+  ] as const)(
+    'each badge has a 44x44 target inside the item bounds (%s)',
+    async (variant, itemW, minH) => {
+      await render(<StoryList variant={variant} />, {
+        wrapper: wrap([kate]),
+      });
+      const wrapStyle = flat(
+        screen.getByTestId('bubble-wrap-kate').props.style
+      );
+      expect(wrapStyle.width).toBe(itemW);
+      for (const label of ['Follow Kate', "Don't suggest Kate"]) {
+        const btn = screen.getByLabelText(label);
+        const st = flat(btn.props.style);
+        const slop = btn.props.hitSlop;
+        expect(st.width + slop.left + slop.right).toBeGreaterThanOrEqual(44);
+        expect(st.height + slop.top + slop.bottom).toBeGreaterThanOrEqual(44);
+        expect(st.left - slop.left).toBeGreaterThanOrEqual(0);
+        expect(st.left + st.width + slop.right).toBeLessThanOrEqual(itemW);
+        expect(st.top - slop.top).toBeGreaterThanOrEqual(0);
+        expect(st.top + st.height + slop.bottom).toBeLessThanOrEqual(minH);
+      }
     }
-  });
+  );
 
   it('uses overridden strings', async () => {
     await render(<StoryList />, {

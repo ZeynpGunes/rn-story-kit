@@ -5,7 +5,7 @@ import { fill } from '../strings';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { StoryUser } from '../types';
 
-const MIN_HIT = 44;
+export const MIN_HIT = 44;
 
 const hitSlopFor = (size: number) => {
   const slop = Math.max(0, (MIN_HIT - size) / 2);
