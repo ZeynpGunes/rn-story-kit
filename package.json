@@ -85,9 +85,11 @@
     "react-native-svg": "15.16.1",
     "react-native-worklets": "0.13.1",
     "test-renderer": "^1.0.0",
-    "thumbhash": "0.1.1",
     "turbo": "^2.11.10",
     "typescript": "^6.0.3"
+  },
+  "dependencies": {
+    "thumbhash": "0.1.1"
   },
   "peerDependencies": {
     "expo-image": "*",
