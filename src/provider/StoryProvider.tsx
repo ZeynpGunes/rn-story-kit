@@ -88,6 +88,8 @@ export interface StoryContextValue {
   closerRef: { current: (() => void) | null };
   /** Internal: stable; undefined when the app gave no renderHeader. */
   renderHeader(p: StorySlotProps): ReactNode | undefined;
+  /** Internal: whether the app gave a renderHeader. */
+  hasCustomHeader: boolean;
   /** Internal: called by the viewer after its close animation ended. */
   onViewerClosed(): void;
   api: StoryViewerApi;
@@ -196,6 +198,8 @@ export function StoryProvider(props: StoryProviderProps) {
     []
   );
 
+  const hasCustomHeader = props.renderHeader !== undefined;
+
   const onViewerClosed = useCallback(() => {
     setOpened(null);
     setActiveUserId(null);
@@ -215,6 +219,7 @@ export function StoryProvider(props: StoryProviderProps) {
       onSwipeUp,
       closerRef,
       renderHeader,
+      hasCustomHeader,
       onViewerClosed,
       api,
       onEndReached,
@@ -229,6 +234,7 @@ export function StoryProvider(props: StoryProviderProps) {
       activeUserId,
       onSwipeUp,
       renderHeader,
+      hasCustomHeader,
       onViewerClosed,
       api,
       onEndReached,

@@ -1,11 +1,10 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from 'react';
 import { StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, {
@@ -14,7 +13,6 @@ import Animated, {
   useReducedMotion,
   useSharedValue,
   withTiming,
-  type SharedValue,
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
@@ -26,7 +24,10 @@ import {
 } from '../model/gestureMath';
 import { enterUser, type NavResult } from '../model/navigation';
 import { measureWithTimeout } from '../provider/rectRegistry';
-import { useStoryContext } from '../provider/StoryProvider';
+import {
+  useStoryContext,
+  type StorySlotProps,
+} from '../provider/StoryProvider';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { Rect, StoryItem, StoryUser } from '../types';
 import { Header } from './Header';
@@ -34,27 +35,12 @@ import { nextVideoTarget, preloadTargets, usePreload } from './media/preload';
 import { VideoSlotsProvider } from './media/videoSlots';
 import { Scrim } from './Scrim';
 import { UserPager } from './UserPager';
+import { ViewerContext } from './viewerContext';
 
 export interface StoryViewerProps {
   initialUserIndex: number;
   sourceRect: Rect | null;
   onClosed(): void;
-}
-
-export interface ViewerControls {
-  requestClose(): void;
-  isClosing: SharedValue<boolean>;
-  /** True during a user change; taps and new pans are ignored. */
-  isTransitioning: SharedValue<boolean>;
-}
-
-const ViewerContext = createContext<ViewerControls | null>(null);
-
-/** Internal: viewer controls for its pages, header and gestures. */
-export function useViewerControls(): ViewerControls {
-  const ctx = useContext(ViewerContext);
-  if (!ctx) throw new Error('rn-story-kit: useViewerControls outside viewer');
-  return ctx;
 }
 
 export function StoryViewer({
@@ -69,6 +55,7 @@ export function StoryViewer({
     opened,
     closerRef,
     renderHeader,
+    hasCustomHeader,
     onActiveUserChange,
   } = useStoryContext();
   const theme = useStoryTheme();
@@ -270,33 +257,35 @@ export function StoryViewer({
     [requestClose, isClosing, isTransitioning]
   );
 
+  // A custom header renders for the active page only, behind a component
+  // boundary so its hooks stay isolated; neighbours then show no header.
   const renderChrome = useCallback(
-    (u: StoryUser, s: StoryItem, storyIndex: number) => {
-      const customHeader = renderHeader({
-        user: u,
-        story: s,
-        storyIndex,
-        close: requestClose,
-        pause: () => {},
-        resume: () => {},
-      });
-      return (
-        <>
-          <Scrim safeAreaTop={insets.top} />
-          {customHeader !== undefined ? (
-            customHeader
-          ) : (
-            <Header
-              user={u}
-              story={s}
-              safeAreaTop={insets.top}
-              onClose={requestClose}
-            />
-          )}
-        </>
-      );
-    },
-    [renderHeader, requestClose, insets.top]
+    (u: StoryUser, s: StoryItem, storyIndex: number, active: boolean) => (
+      <>
+        <Scrim safeAreaTop={insets.top} />
+        {!hasCustomHeader ? (
+          <Header
+            user={u}
+            story={s}
+            safeAreaTop={insets.top}
+            onClose={requestClose}
+          />
+        ) : active ? (
+          <SlotRenderer
+            render={renderHeader}
+            props={{
+              user: u,
+              story: s,
+              storyIndex,
+              close: requestClose,
+              pause: noop,
+              resume: noop,
+            }}
+          />
+        ) : null}
+      </>
+    ),
+    [hasCustomHeader, renderHeader, requestClose, insets.top]
   );
 
   if (!user || !story) return null;
@@ -338,6 +327,18 @@ export function StoryViewer({
       </Animated.View>
     </ViewerContext.Provider>
   );
+}
+
+const noop = () => {};
+
+function SlotRenderer({
+  render,
+  props,
+}: {
+  render(p: StorySlotProps): ReactNode;
+  props: StorySlotProps;
+}) {
+  return <>{render(props)}</>;
 }
 
 const styles = StyleSheet.create({
