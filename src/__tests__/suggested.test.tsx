@@ -163,6 +163,28 @@ describe('suggested bubbles (circle)', () => {
     expect(st.top).toBeGreaterThan(0);
   });
 
+  it.each(['circle', 'card'] as const)(
+    'the bubble press area ends at its label (%s)',
+    async (variant) => {
+      await render(<StoryList variant={variant} />, {
+        wrapper: wrap([kate]),
+      });
+      const bubble = screen.getByTestId('bubble-kate');
+      const st = flat(bubble.props.style);
+      expect(bubble.props.hitSlop).toBeUndefined();
+      for (const key of ['paddingBottom', 'paddingVertical', 'padding']) {
+        expect(st[key]).toBeUndefined();
+      }
+      expect(st.minHeight).toBeUndefined();
+      expect(st.height).toBeUndefined();
+      const wrapStyle = flat(
+        screen.getByTestId('bubble-wrap-kate').props.style
+      );
+      expect(wrapStyle.height).toBeUndefined();
+      expect(wrapStyle.paddingBottom).toBeUndefined();
+    }
+  );
+
   it('uses overridden strings', async () => {
     await render(<StoryList />, {
       wrapper: wrap([kate], {
