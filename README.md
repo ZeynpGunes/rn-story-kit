@@ -82,6 +82,7 @@ interface StoryPerson {
   id: string;
   name: string;
   avatar: string;
+  following?: boolean; // false/omitted → Follow button in the people list
 }
 
 interface StoryUser {
@@ -137,6 +138,7 @@ Users with no stories are hidden. Unseen users are sorted first.
 | `onSendMessage` | `(story, user, text) => void` | Reply field submitted. |
 | `onVoice` | `(story, user) => void` | Mic pressed. |
 | `onShare` | `(story, user) => void` | Share / send pressed. |
+| `onFollow` | `(person) => void` | Follow pressed in the viewers / likers list. |
 | `renderHeader` | `(p: StorySlotProps) => ReactNode` | Replace the header. See below. |
 | `renderFooter` | `(p: StorySlotProps) => ReactNode` | Replaces the default footer entirely. |
 | `renderOverlay` | `(p: StorySlotProps) => ReactNode` | Full-screen overlay slot. |
@@ -147,7 +149,7 @@ Users with no stories are hidden. Unseen users are sorted first.
 
 When you do not pass `renderFooter`, the viewer shows a built-in footer:
 
-- **Own story** (`user.isOwner`): view count and like count. Tap either to open a modal of `viewers` / `likers`. Refresh those arrays by updating `users`.
+- **Own story** (`user.isOwner`): view count and like count. Tap either to open a modal of `viewers` / `likers`. People with `following !== true` show a Follow button (`config.followLabel`, default `'Follow'`); handle it with `onFollow` and refresh `users`.
 - **Others**: message field, like, voice, and share. Toggle each with `config.actions` (all default `true`). Wire behaviour with `onLike`, `onSendMessage`, `onVoice`, and `onShare` — the library only draws the controls and pauses playback while the field is focused or the modal is open.
 
 ### Other exports
@@ -207,6 +209,7 @@ Pass `config` to `StoryProvider` to change behaviour. Defaults are in `defaultCo
 | `formatTime` | relative time | `(createdAt: number) => string`, replaces the header time label. |
 | `actions` | all `true` | `{ message, like, voice, share }` — which controls show on others' stories. |
 | `replyPlaceholder` | `'Send message...'` | Placeholder for the reply field. |
+| `followLabel` | `'Follow'` | Label for the Follow button in the people list. |
 | `motion` | see `defaultConfig` | Durations, springs and gesture thresholds. |
 
 ## Seen storage

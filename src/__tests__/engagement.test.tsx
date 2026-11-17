@@ -29,10 +29,12 @@ const owner: StoryUser = {
       viewCount: 2,
       likeCount: 1,
       viewers: [
-        { id: 'a', name: 'Ada', avatar: 'https://x/a.jpg' },
-        { id: 'b', name: 'Bob', avatar: 'https://x/b.jpg' },
+        { id: 'a', name: 'Ada', avatar: 'https://x/a.jpg', following: false },
+        { id: 'b', name: 'Bob', avatar: 'https://x/b.jpg', following: true },
       ],
-      likers: [{ id: 'a', name: 'Ada', avatar: 'https://x/a.jpg' }],
+      likers: [
+        { id: 'a', name: 'Ada', avatar: 'https://x/a.jpg', following: false },
+      ],
     }),
   ],
 };
@@ -97,6 +99,22 @@ describe('engagement footer', () => {
     await fireEvent.press(screen.getByTestId('owner-likes'));
     expect(screen.getByText('Likes')).toBeTruthy();
     expect(screen.getByText('Ada')).toBeTruthy();
+  });
+
+  it('shows Follow only for people not already followed and fires onFollow', async () => {
+    const onFollow = jest.fn();
+    await mount({ onFollow, config: { followLabel: 'Takip Et' } });
+    await act(async () => viewer.open('me'));
+    await fireEvent.press(screen.getByTestId('owner-views'));
+
+    expect(screen.getByTestId('follow-a')).toBeTruthy();
+    expect(screen.queryByTestId('follow-b')).toBeNull();
+    expect(screen.getByText('Takip Et')).toBeTruthy();
+
+    await fireEvent.press(screen.getByTestId('follow-a'));
+    expect(onFollow).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'a', name: 'Ada' })
+    );
   });
 
   it('non-owner sees the action bar and fires callbacks', async () => {

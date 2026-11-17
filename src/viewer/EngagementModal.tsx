@@ -21,14 +21,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { StoryPerson } from '../types';
-import { closeEngagementLabel } from './a11y';
+import { closeEngagementLabel, followPersonLabel } from './a11y';
 
 export type EngagementKind = 'viewers' | 'likers';
 
 export interface EngagementModalProps {
   kind: EngagementKind | null;
   people: StoryPerson[];
+  followLabel: string;
   onClose(): void;
+  onFollow?(person: StoryPerson): void;
 }
 
 const titles: Record<EngagementKind, string> = {
@@ -48,12 +50,15 @@ const DISMISS_VELOCITY = 900;
 export function EngagementModal({
   kind,
   people,
+  followLabel,
   onClose,
+  onFollow,
 }: EngagementModalProps) {
   const { actions } = useStoryTheme();
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const m = actions.modal;
+  const f = m.follow;
   const open = kind !== null;
 
   const translateY = useSharedValue(0);
@@ -212,6 +217,32 @@ export function EngagementModal({
                     >
                       {item.name}
                     </Text>
+                    {item.following !== true && (
+                      <Pressable
+                        testID={`follow-${item.id}`}
+                        accessibilityRole="button"
+                        accessibilityLabel={followPersonLabel(item.name)}
+                        onPress={() => onFollow?.(item)}
+                        style={{
+                          height: f.height,
+                          paddingHorizontal: f.paddingH,
+                          borderRadius: f.radius,
+                          backgroundColor: f.bg,
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                        }}
+                      >
+                        <Text
+                          style={{
+                            color: f.color,
+                            fontSize: f.size,
+                            fontWeight: f.weight as '600',
+                          }}
+                        >
+                          {followLabel}
+                        </Text>
+                      </Pressable>
+                    )}
                   </View>
                 )}
               />

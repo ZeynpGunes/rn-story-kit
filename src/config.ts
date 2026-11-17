@@ -17,6 +17,8 @@ export interface StoryConfig {
   actions: StoryActionsConfig;
   /** Placeholder for the reply field on others' stories. */
   replyPlaceholder: string;
+  /** Label for the Follow button in the viewers / likers list. */
+  followLabel: string;
   motion: {
     tapCrossfadeMs: number;
     progressFillEasing: 'linear';
@@ -88,6 +90,7 @@ export const defaultConfig: StoryConfig = {
   mediaErrorAdvanceMs: 4000,
   actions: { message: true, like: true, voice: true, share: true },
   replyPlaceholder: 'Send message...',
+  followLabel: 'Follow',
   motion: {
     tapCrossfadeMs: 90,
     progressFillEasing: 'linear',

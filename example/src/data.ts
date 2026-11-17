@@ -55,10 +55,10 @@ const video = (
 const avatar = (pic: number) => `https://picsum.photos/id/${pic}/200/200`;
 
 const people = [
-  { id: 'p1', name: 'maya', avatar: avatar(10) },
-  { id: 'p2', name: 'noah', avatar: avatar(15) },
-  { id: 'p3', name: 'omar', avatar: avatar(20) },
-  { id: 'p4', name: 'priya', avatar: avatar(28) },
+  { id: 'p1', name: 'maya', avatar: avatar(10), following: false },
+  { id: 'p2', name: 'noah', avatar: avatar(15), following: true },
+  { id: 'p3', name: 'omar', avatar: avatar(20), following: false },
+  { id: 'p4', name: 'priya', avatar: avatar(28), following: true },
 ];
 
 export function makeUsers(): StoryUser[] {

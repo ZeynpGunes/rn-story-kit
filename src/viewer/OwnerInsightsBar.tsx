@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
-import type { StoryItem } from '../types';
+import { useStoryContext } from '../provider/StoryProvider';
+import type { StoryItem, StoryPerson } from '../types';
 import { likeCountLabel, viewCountLabel } from './a11y';
 import {
   EngagementModal,
@@ -13,6 +14,7 @@ export interface OwnerInsightsBarProps {
   story: StoryItem;
   pause(): void;
   resume(): void;
+  onFollow?(person: StoryPerson): void;
 }
 
 /** Own-story footer: view and like counts that open the people modal. */
@@ -20,8 +22,10 @@ export function OwnerInsightsBar({
   story,
   pause,
   resume,
+  onFollow,
 }: OwnerInsightsBarProps) {
   const { actions } = useStoryTheme();
+  const { config } = useStoryContext();
   const c = actions.count;
   const [kind, setKind] = useState<EngagementKind | null>(null);
 
@@ -84,7 +88,13 @@ export function OwnerInsightsBar({
           </Text>
         </Pressable>
       </View>
-      <EngagementModal kind={kind} people={people} onClose={close} />
+      <EngagementModal
+        kind={kind}
+        people={people}
+        followLabel={config.followLabel}
+        onClose={close}
+        onFollow={onFollow}
+      />
     </>
   );
 }

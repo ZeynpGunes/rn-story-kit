@@ -8,6 +8,8 @@ export interface StoryPerson {
   id: string;
   name: string;
   avatar: string;
+  /** When false/omitted, a Follow button is shown in the people list. */
+  following?: boolean;
 }
 
 export interface StoryItem {
@@ -163,6 +165,15 @@ export interface StoryTheme {
       avatar: number;
       rowGap: number;
       closeColor: string;
+      follow: {
+        height: number;
+        paddingH: number;
+        radius: number;
+        bg: string;
+        color: string;
+        size: number;
+        weight: string;
+      };
     };
   };
 }
