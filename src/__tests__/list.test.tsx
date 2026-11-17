@@ -85,6 +85,8 @@ describe('StoryList', () => {
     });
     expect(screen.getByText('Hikayen')).toBeTruthy();
     expect(screen.getByTestId('owner-add-badge')).toBeTruthy();
+    expect(screen.queryByTestId('ring-seen-me')).toBeNull();
+    expect(screen.queryByTestId('ring-active-me')).toBeNull();
     expect(screen.getByLabelText('Hikaye ekle')).toBeTruthy();
     await fireEvent.press(screen.getByTestId('bubble-me'));
     expect(onAddStory).toHaveBeenCalledTimes(1);

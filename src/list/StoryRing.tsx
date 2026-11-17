@@ -21,6 +21,8 @@ export interface StoryRingProps {
   palette?: PaletteName | string[];
   avatar: string;
   ringId: string;
+  /** When false, avatar only — no gradient or grey border. Default true. */
+  showRing?: boolean;
 }
 
 export function StoryRing({
@@ -29,6 +31,7 @@ export function StoryRing({
   palette,
   avatar,
   ringId,
+  showRing = true,
 }: StoryRingProps) {
   const theme = useStoryTheme();
   const { scheme, config } = useStoryContext();
@@ -40,51 +43,53 @@ export function StoryRing({
   const stops = Array.isArray(chosen) ? chosen : palettes[chosen][scheme];
   const gradientId = `ring-${ringId}`;
 
-  const opacity = useSharedValue(seen ? 0 : 1);
+  const opacity = useSharedValue(seen || !showRing ? 0 : 1);
   useEffect(() => {
-    opacity.value = withTiming(seen ? 0 : 1, {
+    opacity.value = withTiming(seen || !showRing ? 0 : 1, {
       duration: config.motion.seenRingMs,
       easing: Easing.out(Easing.cubic),
     });
-  }, [seen, opacity, config.motion.seenRingMs]);
+  }, [seen, showRing, opacity, config.motion.seenRingMs]);
   const gradientProps = useAnimatedProps(() => ({ opacity: opacity.value }));
 
   return (
     <View style={{ width: outer, height: outer }}>
-      <View style={[StyleSheet.absoluteFill, styles.rotated]}>
-        <Svg width={outer} height={outer}>
-          <Defs>
-            <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
-              {stops.map((color, i) => (
-                <Stop
-                  key={i}
-                  offset={stops.length > 1 ? i / (stops.length - 1) : 0}
-                  stopColor={color}
-                />
-              ))}
-            </LinearGradient>
-          </Defs>
-          <Circle
-            testID={`ring-seen-${ringId}`}
-            cx={outer / 2}
-            cy={outer / 2}
-            r={outer / 2 - seenWidth / 2}
-            fill="none"
-            stroke={theme.ring.seen}
-            strokeWidth={seenWidth}
-          />
-          <AnimatedCircle
-            testID={`ring-active-${ringId}`}
-            cx={outer / 2}
-            cy={outer / 2}
-            r={outer / 2 - width / 2}
-            fill="none"
-            stroke={`url(#${gradientId})`}
-            strokeWidth={width}
-            animatedProps={gradientProps}
-          />
-        </Svg>
-      </View>
+      {showRing && (
+        <View style={[StyleSheet.absoluteFill, styles.rotated]}>
+          <Svg width={outer} height={outer}>
+            <Defs>
+              <LinearGradient id={gradientId} x1="0" y1="0" x2="1" y2="1">
+                {stops.map((color, i) => (
+                  <Stop
+                    key={i}
+                    offset={stops.length > 1 ? i / (stops.length - 1) : 0}
+                    stopColor={color}
+                  />
+                ))}
+              </LinearGradient>
+            </Defs>
+            <Circle
+              testID={`ring-seen-${ringId}`}
+              cx={outer / 2}
+              cy={outer / 2}
+              r={outer / 2 - seenWidth / 2}
+              fill="none"
+              stroke={theme.ring.seen}
+              strokeWidth={seenWidth}
+            />
+            <AnimatedCircle
+              testID={`ring-active-${ringId}`}
+              cx={outer / 2}
+              cy={outer / 2}
+              r={outer / 2 - width / 2}
+              fill="none"
+              stroke={`url(#${gradientId})`}
+              strokeWidth={width}
+              animatedProps={gradientProps}
+            />
+          </Svg>
+        </View>
+      )}
       <View style={[StyleSheet.absoluteFill, styles.center]}>
         <Image
           source={avatar}

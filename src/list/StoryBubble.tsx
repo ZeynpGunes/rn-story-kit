@@ -80,7 +80,8 @@ export function StoryBubble({
       <View ref={ringRef} collapsable={false} style={styles.ringWrap}>
         <StoryRing
           size={theme.list.bubble}
-          seen={isEmptyOwner ? true : seen}
+          seen={seen}
+          showRing={!isEmptyOwner}
           palette={user.ringColors ?? user.ringVariant}
           avatar={user.avatar}
           ringId={user.id}
