@@ -5,7 +5,8 @@ import { measureWithTimeout } from '../provider/rectRegistry';
 import { useStoryContext } from '../provider/StoryProvider';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { Rect, StoryUser } from '../types';
-import { bubbleLabel } from '../viewer/a11y';
+import { bubbleLabel, suggestedBubbleLabel } from '../viewer/a11y';
+import { DismissButton, FollowButton } from './SuggestedBadges';
 import { StoryRing } from './StoryRing';
 
 export function StoryBubble({
@@ -16,12 +17,15 @@ export function StoryBubble({
   seen: boolean;
 }) {
   const theme = useStoryTheme();
-  const { registry, api, config, hiddenUserId, onAddStory } = useStoryContext();
+  const { registry, api, config, hiddenUserId, onAddStory, followedIds } =
+    useStoryContext();
   const ringRef = useRef<ComponentRef<typeof View>>(null);
   const { name } = theme.list;
   const isOwner = user.isOwner === true;
   const isEmptyOwner =
     isOwner && user.stories.length === 0 && config.ownerBubble.showAddWhenEmpty;
+  const isSuggested = user.suggested === true && !isOwner;
+  const showFollow = isSuggested && !followedIds.has(user.id);
   const label = isOwner ? config.strings.yourStory : user.name;
 
   const measure = useCallback(
@@ -61,7 +65,9 @@ export function StoryBubble({
           seen,
           user.stories.length
         )
-      : bubbleLabel(config.strings, user.name, seen, user.stories.length);
+      : isSuggested
+        ? suggestedBubbleLabel(config.strings, user.name, user.stories.length)
+        : bubbleLabel(config.strings, user.name, seen, user.stories.length);
 
   return (
     <Pressable
@@ -85,6 +91,20 @@ export function StoryBubble({
           ringId={user.id}
         />
         {isEmptyOwner && <AddBadge />}
+        {isSuggested && (
+          <DismissButton
+            user={user}
+            size={theme.list.suggested.circle.closeSize}
+            style={styles.dismissCircle}
+          />
+        )}
+        {showFollow && (
+          <FollowButton
+            user={user}
+            size={theme.list.suggested.circle.followSize}
+            style={styles.followCircle}
+          />
+        )}
       </View>
       <Text
         numberOfLines={name.lines}
@@ -140,6 +160,8 @@ const styles = StyleSheet.create({
   item: { alignItems: 'center' },
   hidden: { opacity: 0 },
   ringWrap: { position: 'relative' },
+  dismissCircle: { top: 0, right: 0 },
+  followCircle: { bottom: 0, right: 0 },
   badge: {
     position: 'absolute',
     right: 0,

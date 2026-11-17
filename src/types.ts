@@ -45,6 +45,10 @@ export interface StoryUser {
   ringColors?: string[];
   /** Marks the signed-in user's row; shows view/like insights instead of the action bar. */
   isOwner?: boolean;
+  /** A person the viewer does not follow; the bubble shows follow and dismiss buttons. */
+  suggested?: boolean;
+  /** Image shown on a card bubble. Falls back to `avatar`. */
+  cover?: string;
 }
 
 export interface Rect {
@@ -136,6 +140,12 @@ export interface StoryTheme {
       icon: string;
       border: string;
       borderWidth: number;
+    };
+    suggested: {
+      follow: { size: number; bg: string; icon: string; inset: number };
+      close: { size: number; bg: string; icon: string; inset: number };
+      /** Badge sizes on the circle variant (card uses `follow.size`/`close.size`). */
+      circle: { followSize: number; closeSize: number };
     };
   };
   avatarPlaceholder: string;

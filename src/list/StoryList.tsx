@@ -17,20 +17,31 @@ export function StoryList({
   ListHeaderComponent,
 }: StoryListProps = {}) {
   const theme = useStoryTheme();
-  const { users, store, config, onEndReached } = useStoryContext();
+  const { users, store, config, onEndReached, dismissedIds } =
+    useStoryContext();
   const version = useSeenVersion();
 
   const data = useMemo(
     () =>
       sortUsers(
-        visibleUsers(users, config.ownerBubble),
+        visibleUsers(
+          users.filter((u) => !dismissedIds.has(u.id)),
+          config.ownerBubble
+        ),
         store,
         config.sortUnseenFirst,
         config.ownerBubble
       ),
     // version: re-sort when seen state changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [users, store, config.sortUnseenFirst, config.ownerBubble, version]
+    [
+      users,
+      dismissedIds,
+      store,
+      config.sortUnseenFirst,
+      config.ownerBubble,
+      version,
+    ]
   );
 
   if (data.length === 0) return null;

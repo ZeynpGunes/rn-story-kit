@@ -41,6 +41,12 @@ export interface StoryStrings {
   bubbleNew: string;
   /** e.g. `{name}, seen, {count} stories` */
   bubbleSeen: string;
+  /** e.g. `{name}, suggested, {count} stories` */
+  bubbleSuggested: string;
+  /** Follow button on a suggested bubble, e.g. `Follow {name}` */
+  followSuggested: string;
+  /** Dismiss button on a suggested bubble, e.g. `Don't suggest {name}` */
+  dismissSuggestion: string;
   /** Label under the owner's bubble, e.g. `Your story`. */
   yourStory: string;
   /** Accessibility label for the empty-owner + control. */
@@ -76,6 +82,9 @@ export const defaultStrings: StoryStrings = {
   prevStory: 'Previous story',
   bubbleNew: '{name}, new story, {count} stories',
   bubbleSeen: '{name}, seen, {count} stories',
+  bubbleSuggested: '{name}, suggested, {count} stories',
+  followSuggested: 'Follow {name}',
+  dismissSuggestion: "Don't suggest {name}",
   yourStory: 'Your story',
   addStory: 'Add story',
   announce: '{name}, story {number} of {count}',

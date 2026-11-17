@@ -73,6 +73,11 @@ const base: StoryTheme = {
       border: '#FFFFFF',
       borderWidth: 2,
     },
+    suggested: {
+      follow: { size: 32, bg: '#FFFFFF', icon: '#111111', inset: 6 },
+      close: { size: 28, bg: 'rgba(0,0,0,0.55)', icon: '#FFFFFF', inset: 6 },
+      circle: { followSize: 22, closeSize: 20 },
+    },
   },
   avatarPlaceholder: '#E4E6EA',
   actions: {

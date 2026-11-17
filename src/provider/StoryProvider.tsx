@@ -54,7 +54,10 @@ export interface StoryProviderProps {
   onSendMessage?(story: StoryItem, user: StoryUser, text: string): void;
   onVoice?(story: StoryItem, user: StoryUser): void;
   onShare?(story: StoryItem, user: StoryUser): void;
+  /** Follow button on a person in the viewers list or on a suggested bubble. */
   onFollow?(person: StoryPerson): void;
+  /** X on a suggested bubble. The list hides the user; the app persists it. */
+  onDismissSuggestion?(user: StoryUser): void;
   /** Empty owner bubble (+) pressed — host navigates to create a story. */
   onAddStory?(): void;
   renderHeader?(p: StorySlotProps): ReactNode;
@@ -110,6 +113,13 @@ export interface StoryContextValue {
   onVoice(story: StoryItem, user: StoryUser): void;
   onShare(story: StoryItem, user: StoryUser): void;
   onFollow(person: StoryPerson): void;
+  /** Internal: suggested users the viewer followed or dismissed, this session. */
+  followedIds: ReadonlySet<string>;
+  dismissedIds: ReadonlySet<string>;
+  /** Internal: stable; follow a suggested user and hide its follow button. */
+  followSuggested(user: StoryUser): void;
+  /** Internal: stable; dismiss a suggested user and hide its bubble. */
+  dismissSuggestion(user: StoryUser): void;
   /** Internal: stable; empty-owner + control. */
   onAddStory(): void;
   /** Internal: the mounted viewer registers its close routine here. */
@@ -222,6 +232,25 @@ export function StoryProvider(props: StoryProviderProps) {
     []
   );
   const onAddStory = useCallback(() => latest.current.onAddStory?.(), []);
+  const [followedIds, setFollowedIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
+  const [dismissedIds, setDismissedIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
+  const followSuggested = useCallback((user: StoryUser) => {
+    setFollowedIds((prev) => new Set(prev).add(user.id));
+    latest.current.onFollow?.({
+      id: user.id,
+      name: user.name,
+      avatar: user.avatar,
+      following: false,
+    });
+  }, []);
+  const dismissSuggestion = useCallback((user: StoryUser) => {
+    setDismissedIds((prev) => new Set(prev).add(user.id));
+    latest.current.onDismissSuggestion?.(user);
+  }, []);
 
   const mergedConfig = useMemo(() => {
     const merged = deepMerge(defaultConfig, config) as StoryConfig;
@@ -338,6 +367,10 @@ export function StoryProvider(props: StoryProviderProps) {
       onVoice,
       onShare,
       onFollow,
+      followedIds,
+      dismissedIds,
+      followSuggested,
+      dismissSuggestion,
       onAddStory,
       closerRef,
       commandsRef,
@@ -366,6 +399,10 @@ export function StoryProvider(props: StoryProviderProps) {
       onVoice,
       onShare,
       onFollow,
+      followedIds,
+      dismissedIds,
+      followSuggested,
+      dismissSuggestion,
       onAddStory,
       renderHeader,
       renderFooter,
