@@ -8,9 +8,11 @@ import {
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import {
   GestureDetector,
+  useCompetingGestures,
   useExclusiveGestures,
   useLongPressGesture,
   useTapGesture,
+  type ComposedGesture,
 } from 'react-native-gesture-handler';
 import Animated, {
   cancelAnimation,
@@ -45,6 +47,14 @@ export interface UserPageProps {
   lastViewed: Record<string, number>;
   isActive: boolean;
   held: SharedValue<boolean>;
+  /** While true, taps and long-presses are ignored (user transition, close). */
+  inputBlocked?: SharedValue<boolean>;
+  /** Pager pans; they compete with this page's tap and long-press. */
+  pagerGesture?: ComposedGesture;
+  /** Extra multiplier for the chrome opacity (drag-down dismiss). */
+  chromeOpacity?: SharedValue<number>;
+  /** Bumped to restart the current story from 0. */
+  restartToken?: number;
   onNav(r: NavResult): void;
   onMediaFirstFrame(story: StoryItem): void;
   /** Chrome (scrim, header) drawn over the media; hidden while pressing. */
@@ -55,7 +65,13 @@ export interface UserPageProps {
 export function UserPage(props: UserPageProps) {
   const story = props.user.stories[props.storyIndex];
   if (!story) return null;
-  return <StoryPage key={story.id} story={story} {...props} />;
+  return (
+    <StoryPage
+      key={`${story.id}:${props.restartToken ?? 0}`}
+      story={story}
+      {...props}
+    />
+  );
 }
 
 function StoryPage({
@@ -66,6 +82,9 @@ function StoryPage({
   lastViewed,
   isActive,
   held,
+  inputBlocked,
+  pagerGesture,
+  chromeOpacity,
   onNav,
   onMediaFirstFrame,
   children,
@@ -170,11 +189,12 @@ function StoryPage({
   const showMs = reduced ? motion.reducedUiFadeMs : motion.uiShowMs;
 
   const longPress = useLongPressGesture({
-    testID: 'story-long-press',
+    testID: isActive ? 'story-long-press' : undefined,
     minDuration: motion.longPressMs,
     maxDistance: motion.longPressMaxDistance,
     onActivate: () => {
       'worklet';
+      if (inputBlocked?.value) return;
       pressed.value = true;
       cancelAnimation(progress);
       uiOpacity.value = withTiming(0, {
@@ -195,16 +215,22 @@ function StoryPage({
     },
   });
   const tap = useTapGesture({
-    testID: 'story-tap',
+    testID: isActive ? 'story-tap' : undefined,
     maxDuration: motion.tapMaxDurationMs,
     maxDistance: motion.tapMaxDistance,
     onActivate: (e) => {
       'worklet';
+      if (inputBlocked?.value) return;
       scheduleOnRN(handleTapAt, e.x);
     },
   });
-  const gesture = useExclusiveGestures(longPress, tap);
-  const uiStyle = useAnimatedStyle(() => ({ opacity: uiOpacity.value }));
+  const pageGesture = useExclusiveGestures(longPress, tap);
+  const gesture = useCompetingGestures(
+    ...(pagerGesture ? [pagerGesture, pageGesture] : [pageGesture])
+  );
+  const uiStyle = useAnimatedStyle(() => ({
+    opacity: uiOpacity.value * (chromeOpacity?.value ?? 1),
+  }));
 
   return (
     <View style={styles.fill}>

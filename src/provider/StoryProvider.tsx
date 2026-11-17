@@ -78,8 +78,12 @@ export interface StoryContextValue {
     users: StoryUser[];
     userIndex: number;
   } | null;
-  /** Bubble to render invisible while the viewer is open. */
+  /** Bubble to render invisible while the viewer is open (active user). */
   hiddenUserId: string | null;
+  /** Internal: the viewer reports its active user here. */
+  onActiveUserChange(userId: string): void;
+  /** Internal: stable; always calls the latest onSwipeUp prop. */
+  onSwipeUp(story: StoryItem, user: StoryUser): void;
   /** Internal: the mounted viewer registers its close routine here. */
   closerRef: { current: (() => void) | null };
   /** Internal: stable; undefined when the app gave no renderHeader. */
@@ -146,6 +150,12 @@ export function StoryProvider(props: StoryProviderProps) {
   }, [store]);
 
   const [opened, setOpened] = useState<StoryContextValue['opened']>(null);
+  const [activeUserId, setActiveUserId] = useState<string | null>(null);
+  const onSwipeUp = useCallback(
+    (story: StoryItem, user: StoryUser) =>
+      latest.current.onSwipeUp?.(story, user),
+    []
+  );
 
   const mergedConfig = useMemo(
     () => deepMerge(defaultConfig, config) as StoryConfig,
@@ -188,6 +198,7 @@ export function StoryProvider(props: StoryProviderProps) {
 
   const onViewerClosed = useCallback(() => {
     setOpened(null);
+    setActiveUserId(null);
     latest.current.onClose?.();
   }, []);
 
@@ -199,7 +210,9 @@ export function StoryProvider(props: StoryProviderProps) {
       store,
       registry,
       opened,
-      hiddenUserId: opened?.userId ?? null,
+      hiddenUserId: opened ? (activeUserId ?? opened.userId) : null,
+      onActiveUserChange: setActiveUserId,
+      onSwipeUp,
       closerRef,
       renderHeader,
       onViewerClosed,
@@ -213,6 +226,8 @@ export function StoryProvider(props: StoryProviderProps) {
       store,
       registry,
       opened,
+      activeUserId,
+      onSwipeUp,
       renderHeader,
       onViewerClosed,
       api,

@@ -18,17 +18,22 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
-import { lerpRect } from '../model/gestureMath';
+import {
+  dismissProgress,
+  dismissStyle,
+  lerpRect,
+  rubberBand,
+} from '../model/gestureMath';
 import { enterUser, type NavResult } from '../model/navigation';
 import { measureWithTimeout } from '../provider/rectRegistry';
 import { useStoryContext } from '../provider/StoryProvider';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
-import type { Rect, StoryItem } from '../types';
+import type { Rect, StoryItem, StoryUser } from '../types';
 import { Header } from './Header';
 import { nextVideoTarget, preloadTargets, usePreload } from './media/preload';
 import { VideoSlotsProvider } from './media/videoSlots';
 import { Scrim } from './Scrim';
-import { UserPage } from './UserPage';
+import { UserPager } from './UserPager';
 
 export interface StoryViewerProps {
   initialUserIndex: number;
@@ -39,11 +44,13 @@ export interface StoryViewerProps {
 export interface ViewerControls {
   requestClose(): void;
   isClosing: SharedValue<boolean>;
+  /** True during a user change; taps and new pans are ignored. */
+  isTransitioning: SharedValue<boolean>;
 }
 
 const ViewerContext = createContext<ViewerControls | null>(null);
 
-/** Internal: close controls for the viewer's pages, header and gestures. */
+/** Internal: viewer controls for its pages, header and gestures. */
 export function useViewerControls(): ViewerControls {
   const ctx = useContext(ViewerContext);
   if (!ctx) throw new Error('rn-story-kit: useViewerControls outside viewer');
@@ -55,8 +62,15 @@ export function StoryViewer({
   sourceRect,
   onClosed,
 }: StoryViewerProps) {
-  const { config, store, registry, opened, closerRef, renderHeader } =
-    useStoryContext();
+  const {
+    config,
+    store,
+    registry,
+    opened,
+    closerRef,
+    renderHeader,
+    onActiveUserChange,
+  } = useStoryContext();
   const theme = useStoryTheme();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();
@@ -72,7 +86,6 @@ export function StoryViewer({
   const user = users[nav.userIndex];
   const story = user?.stories[nav.storyIndex];
   usePreload(users, nav);
-  const held = useSharedValue(false);
   const lastViewed = useRef<Record<string, number>>({});
 
   const onClosedRef = useRef(onClosed);
@@ -84,6 +97,9 @@ export function StoryViewer({
   const progress = useSharedValue(0);
   const rect = useSharedValue<Rect | null>(useRect ? sourceRect : null);
   const isClosing = useSharedValue(false);
+  const isTransitioning = useSharedValue(false);
+  // Vertical drag: > 0 dismiss, < 0 swipe-up.
+  const dragY = useSharedValue(0);
   const closingRef = useRef(false);
   const fadeMs = reduced ? motion.reducedOpenCloseMs : motion.closeNoRectMs;
 
@@ -110,16 +126,15 @@ export function StoryViewer({
         'worklet';
         if (finished) scheduleOnRN(finish);
       };
-      progress.value = measured
-        ? withTiming(
-            0,
-            {
-              duration: motion.closeMs,
-              easing: Easing.bezier(...motion.closeBezier),
-            },
-            done
-          )
-        : withTiming(0, { duration: fadeMs }, done);
+      const timing = measured
+        ? {
+            duration: motion.closeMs,
+            easing: Easing.bezier(...motion.closeBezier),
+          }
+        : { duration: fadeMs };
+      // A dismiss drag hands over to the close animation from where it is.
+      dragY.value = withTiming(0, timing);
+      progress.value = withTiming(0, timing, done);
     };
     run();
   }, [
@@ -133,6 +148,7 @@ export function StoryViewer({
     progress,
     rect,
     isClosing,
+    dragY,
     finish,
   ]);
 
@@ -145,7 +161,10 @@ export function StoryViewer({
       if (userId) lastViewed.current[userId] = nav.storyIndex;
       setNav((prev) => ({
         ...r.state,
-        restarts: prev.restarts + (r.kind === 'restart' ? 1 : 0),
+        restarts:
+          r.kind === 'user'
+            ? 0
+            : prev.restarts + (r.kind === 'restart' ? 1 : 0),
       }));
     },
     [requestClose, userId, nav.storyIndex]
@@ -157,6 +176,11 @@ export function StoryViewer({
     },
     [store, userId]
   );
+
+  // Close shrinks back to the active user's bubble; that one is hidden.
+  useEffect(() => {
+    if (userId) onActiveUserChange(userId);
+  }, [userId, onActiveUserChange]);
 
   useEffect(() => {
     closerRef.current = requestClose;
@@ -170,22 +194,36 @@ export function StoryViewer({
   const noRectScale = motion.closeNoRectScale;
 
   const frameStyle = useAnimatedStyle(() => {
+    const y = dragY.value;
+    const d = dismissStyle(
+      y > 0 ? dismissProgress(y, height, motion) : 0,
+      motion
+    );
+    // Reduce motion: dismiss is a background fade only.
+    const dragScale = reduced ? 1 : d.scale;
+    const dragRadius = reduced ? 0 : d.borderRadius;
+    // Down follows 1:1; up is dampened and capped.
+    const translateY =
+      y > 0
+        ? y
+        : Math.max(
+            -motion.swipeUpFollowMax,
+            rubberBand(y, height, motion.rubberBandFactor)
+          );
     const from = rect.value;
     if (!from) {
+      const closeScale =
+        isClosing.value && !reduced
+          ? noRectScale + (1 - noRectScale) * progress.value
+          : 1;
       return {
         left: 0,
         top: 0,
         width,
         height,
         opacity: progress.value,
-        transform: [
-          {
-            scale:
-              isClosing.value && !reduced
-                ? noRectScale + (1 - noRectScale) * progress.value
-                : 1,
-          },
-        ],
+        borderRadius: dragRadius,
+        transform: [{ translateY }, { scale: closeScale * dragScale }],
       };
     }
     const r = lerpRect(from, { x: 0, y: 0, width, height }, progress.value);
@@ -195,8 +233,27 @@ export function StoryViewer({
       width: r.width,
       height: r.height,
       opacity: 1,
-      borderRadius: (from.width / 2) * (1 - progress.value),
+      borderRadius: Math.max(
+        (from.width / 2) * (1 - progress.value),
+        dragRadius
+      ),
+      transform: [{ translateY }, { scale: dragScale }],
     };
+  });
+
+  const backdropStyle = useAnimatedStyle(() => {
+    const y = dragY.value;
+    const d = dismissStyle(
+      y > 0 ? dismissProgress(y, height, motion) : 0,
+      motion
+    );
+    // Shown once open; fades with the close, never during the open.
+    const shown = isClosing.value
+      ? progress.value
+      : progress.value >= 1
+        ? 1
+        : 0;
+    return { opacity: shown * d.bgOpacity };
   });
 
   const contentStyle = useAnimatedStyle(() => {
@@ -209,24 +266,53 @@ export function StoryViewer({
   });
 
   const controls = useMemo(
-    () => ({ requestClose, isClosing }),
-    [requestClose, isClosing]
+    () => ({ requestClose, isClosing, isTransitioning }),
+    [requestClose, isClosing, isTransitioning]
+  );
+
+  const renderChrome = useCallback(
+    (u: StoryUser, s: StoryItem, storyIndex: number) => {
+      const customHeader = renderHeader({
+        user: u,
+        story: s,
+        storyIndex,
+        close: requestClose,
+        pause: () => {},
+        resume: () => {},
+      });
+      return (
+        <>
+          <Scrim safeAreaTop={insets.top} />
+          {customHeader !== undefined ? (
+            customHeader
+          ) : (
+            <Header
+              user={u}
+              story={s}
+              safeAreaTop={insets.top}
+              onClose={requestClose}
+            />
+          )}
+        </>
+      );
+    },
+    [renderHeader, requestClose, insets.top]
   );
 
   if (!user || !story) return null;
-  const slot = {
-    user,
-    story,
-    storyIndex: nav.storyIndex,
-    close: requestClose,
-    pause: () => {},
-    resume: () => {},
-  };
-  const customHeader = renderHeader(slot);
   const nextVideo = nextVideoTarget(preloadTargets(users, nav, store));
 
   return (
     <ViewerContext.Provider value={controls}>
+      <Animated.View
+        testID="story-backdrop"
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFill,
+          { backgroundColor: theme.viewer.dismissBg },
+          backdropStyle,
+        ]}
+      />
       <Animated.View
         testID="story-viewer"
         accessibilityViewIsModal
@@ -238,29 +324,15 @@ export function StoryViewer({
       >
         <Animated.View style={[styles.fill, contentStyle]}>
           <VideoSlotsProvider active={story} next={nextVideo}>
-            <UserPage
-              key={`${user.id}:${nav.restarts}`}
-              user={user}
-              storyIndex={nav.storyIndex}
+            <UserPager
               users={users}
+              nav={nav}
               lastViewed={lastViewed.current}
-              isActive
-              held={held}
+              dragY={dragY}
               onNav={onNav}
               onMediaFirstFrame={onMediaFirstFrame}
-            >
-              <Scrim safeAreaTop={insets.top} />
-              {customHeader !== undefined ? (
-                customHeader
-              ) : (
-                <Header
-                  user={user}
-                  story={story}
-                  safeAreaTop={insets.top}
-                  onClose={requestClose}
-                />
-              )}
-            </UserPage>
+              renderChrome={renderChrome}
+            />
           </VideoSlotsProvider>
         </Animated.View>
       </Animated.View>
