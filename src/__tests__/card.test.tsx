@@ -155,7 +155,7 @@ describe('StoryList card variant', () => {
     expect(screen.getByTestId('ring-seen-ada').props.stroke).toBe('#C9CCD1');
   });
 
-  it('card suggested: follow and dismiss work and open nothing', async () => {
+  it('card suggested: dismiss removes the card and opens nothing', async () => {
     const onFollow = jest.fn();
     const onDismissSuggestion = jest.fn();
     const onOpen = jest.fn();
@@ -168,10 +168,22 @@ describe('StoryList card variant', () => {
       width: 32,
       height: 32,
     });
-    await fireEvent.press(follow);
-    expect(onFollow).toHaveBeenCalledTimes(1);
     await fireEvent.press(screen.getByLabelText("Don't suggest Kate"));
     expect(onDismissSuggestion).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId('bubble-kate')).toBeNull();
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('card suggested: follow hides follow and dismiss and opens nothing', async () => {
+    const onFollow = jest.fn();
+    const onOpen = jest.fn();
+    await render(<StoryList variant="card" />, {
+      wrapper: withUsers([kate], { onFollow, onOpen }),
+    });
+    await fireEvent.press(screen.getByLabelText('Follow Kate'));
+    expect(onFollow).toHaveBeenCalledTimes(1);
+    expect(screen.queryByLabelText('Follow Kate')).toBeNull();
+    expect(screen.queryByLabelText("Don't suggest Kate")).toBeNull();
     expect(onOpen).not.toHaveBeenCalled();
   });
 

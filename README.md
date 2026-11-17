@@ -261,7 +261,7 @@ Mark the signed-in user with `isOwner: true`.
 
 Mark people the viewer does not follow with `suggested: true`. Their bubble gets two buttons:
 
-- **Follow**: calls `onFollow({ id, name, avatar, following: false })` and hides the button for that user. Send `suggested: false` in your next `users` update.
+- **Follow**: calls `onFollow({ id, name, avatar, following: false })` and hides both buttons for that user. Send `suggested: false` in your next `users` update.
 - **X**: calls `onDismissSuggestion(user)` and removes the bubble at once (in memory, for the provider's lifetime). You persist the choice and stop sending the user.
 
 Neither button opens the viewer, and each has a hit area of at least 44x44. The owner bubble never shows them. The bubble label uses `strings.bubbleSuggested`; the buttons use `strings.followSuggested` and `strings.dismissSuggestion`.

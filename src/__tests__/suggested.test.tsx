@@ -54,7 +54,7 @@ describe('suggested bubbles (circle)', () => {
     expect(screen.getByLabelText('Kate, suggested, 3 stories')).toBeTruthy();
   });
 
-  it('follow calls onFollow, hides the follow button, opens nothing', async () => {
+  it('follow calls onFollow, hides follow and dismiss, opens nothing', async () => {
     const onFollow = jest.fn();
     const onOpen = jest.fn();
     await render(<StoryList />, {
@@ -69,7 +69,7 @@ describe('suggested bubbles (circle)', () => {
     });
     expect(onOpen).not.toHaveBeenCalled();
     expect(screen.queryByLabelText('Follow Kate')).toBeNull();
-    expect(screen.getByLabelText("Don't suggest Kate")).toBeTruthy();
+    expect(screen.queryByLabelText("Don't suggest Kate")).toBeNull();
     expect(screen.getByTestId('bubble-kate')).toBeTruthy();
   });
 
@@ -98,8 +98,11 @@ describe('suggested bubbles (circle)', () => {
         const btn = screen.getByRole('button', { name: label });
         expect(btn.props.accessible).not.toBe(false);
         expect(within(bubble).queryByLabelText(label)).toBeNull();
-        await fireEvent.press(btn);
       }
+      // Follow hides both buttons, so press dismiss (which removes the bubble) last.
+      await fireEvent.press(
+        screen.getByRole('button', { name: 'Follow Kate' })
+      );
       expect(onOpen).not.toHaveBeenCalled();
     }
   );

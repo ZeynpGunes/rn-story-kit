@@ -208,7 +208,7 @@ export function StoryBubble({
           {label}
         </Text>
       </Pressable>
-      {isSuggested && (
+      {showFollow && (
         <DismissButton
           user={user}
           size={closeSize}
