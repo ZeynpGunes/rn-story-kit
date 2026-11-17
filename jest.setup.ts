@@ -4,3 +4,4 @@ require('react-native-reanimated').setUpTests();
 
 jest.mock('expo-video');
 jest.mock('expo-image');
+jest.mock('react-native-svg');
