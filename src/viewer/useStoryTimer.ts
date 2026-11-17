@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import {
   cancelAnimation,
   Easing,
+  useAnimatedReaction,
   useSharedValue,
   withTiming,
   type SharedValue,
@@ -12,11 +13,14 @@ export interface StoryTimerOptions {
   durationMs: number;
   active: boolean;
   /** paused || buffering || !mediaReady || appBackground || longPress || dragging */
-  held: boolean;
+  held: SharedValue<boolean>;
   onComplete(): void;
 }
 
-/** Linear 0..1 progress; freezes while held and resumes from where it was. */
+/**
+ * Linear 0..1 progress driven on the UI thread. Freezes while held and
+ * resumes from where it stopped.
+ */
 export function useStoryTimer({
   durationMs,
   active,
@@ -24,25 +28,36 @@ export function useStoryTimer({
   onComplete,
 }: StoryTimerOptions): { progress: SharedValue<number>; reset(): void } {
   const progress = useSharedValue(0);
+  const activeSv = useSharedValue(active);
+  useEffect(() => {
+    activeSv.value = active;
+  }, [activeSv, active]);
+
   const onCompleteRef = useRef(onComplete);
   onCompleteRef.current = onComplete;
   const complete = useCallback(() => onCompleteRef.current(), []);
 
-  useEffect(() => {
-    if (!active || held || progress.value >= 1) return;
-    progress.value = withTiming(
-      1,
-      {
-        duration: durationMs * (1 - progress.value),
-        easing: Easing.linear,
-      },
-      (finished) => {
-        'worklet';
-        if (finished) scheduleOnRN(complete);
+  useAnimatedReaction(
+    () => activeSv.value && !held.value,
+    (running) => {
+      if (!running) {
+        cancelAnimation(progress);
+        return;
       }
-    );
-    return () => cancelAnimation(progress);
-  }, [active, held, durationMs, progress, complete]);
+      if (progress.value >= 1) return;
+      progress.value = withTiming(
+        1,
+        {
+          duration: durationMs * (1 - progress.value),
+          easing: Easing.linear,
+        },
+        (finished) => {
+          'worklet';
+          if (finished) scheduleOnRN(complete);
+        }
+      );
+    }
+  );
 
   const reset = useCallback(() => {
     cancelAnimation(progress);

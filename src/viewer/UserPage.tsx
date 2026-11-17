@@ -13,9 +13,10 @@ import {
   useTapGesture,
 } from 'react-native-gesture-handler';
 import Animated, {
+  cancelAnimation,
   Easing,
-  useAnimatedReaction,
   useAnimatedStyle,
+  useDerivedValue,
   useReducedMotion,
   useSharedValue,
   withTiming,
@@ -25,6 +26,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 import { tapNext, tapPrev, type NavResult } from '../model/navigation';
 import { useStoryContext } from '../provider/StoryProvider';
+import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { StoryItem, StoryUser } from '../types';
 import { LoadingIndicator } from './LoadingIndicator';
 import { ImageMedia } from './media/ImageMedia';
@@ -68,21 +70,20 @@ function StoryPage({
 }: UserPageProps & { story: StoryItem }) {
   const { config } = useStoryContext();
   const { motion } = config;
+  const { loading } = useStoryTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
   const reduced = useReducedMotion();
 
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
-  const [pressed, setPressed] = useState(false);
-  const [parentHeld, setParentHeld] = useState(false);
+  const [uiHidden, setUiHidden] = useState(false);
   const [showLoading, setShowLoading] = useState(false);
-
-  useAnimatedReaction(
-    () => held.value,
-    (v, prev) => {
-      if (v !== prev) scheduleOnRN(setParentHeld, v);
-    }
+  // UI-thread mirrors so pausing never waits for a React render.
+  const pressed = useSharedValue(false);
+  const mediaBlocked = useSharedValue(true);
+  const timerHeld = useDerivedValue(
+    () => held.value || pressed.value || mediaBlocked.value
   );
 
   const navState = {
@@ -100,7 +101,7 @@ function StoryPage({
   const { progress } = useStoryTimer({
     durationMs: story.durationMs ?? config.imageDurationMs,
     active: isActive,
-    held: parentHeld || pressed || !ready || failed,
+    held: timerHeld,
     onComplete: goNext,
   });
 
@@ -124,9 +125,9 @@ function StoryPage({
       setShowLoading(false);
       return;
     }
-    const t = setTimeout(() => setShowLoading(true), motion.loadingShowAfterMs);
+    const t = setTimeout(() => setShowLoading(true), loading.showAfterMs);
     return () => clearTimeout(t);
-  }, [isActive, ready, failed, motion.loadingShowAfterMs]);
+  }, [isActive, ready, failed, loading.showAfterMs]);
 
   const handleTapAt = useCallback(
     (x: number) => {
@@ -140,34 +141,45 @@ function StoryPage({
     [width, config.tapZoneRatio]
   );
 
+  const uiOpacity = useSharedValue(1);
+  const hideMs = reduced ? motion.reducedUiFadeMs : motion.uiHideMs;
+  const showMs = reduced ? motion.reducedUiFadeMs : motion.uiShowMs;
+
   const longPress = useLongPressGesture({
     testID: 'story-long-press',
-    runOnJS: true,
     minDuration: motion.longPressMs,
     maxDistance: motion.longPressMaxDistance,
-    onActivate: () => setPressed(true),
-    onFinalize: () => setPressed(false),
+    onActivate: () => {
+      'worklet';
+      pressed.value = true;
+      cancelAnimation(progress);
+      uiOpacity.value = withTiming(0, {
+        duration: hideMs,
+        easing: Easing.out(Easing.cubic),
+      });
+      scheduleOnRN(setUiHidden, true);
+    },
+    onFinalize: () => {
+      'worklet';
+      if (!pressed.value) return;
+      pressed.value = false;
+      uiOpacity.value = withTiming(1, {
+        duration: showMs,
+        easing: Easing.out(Easing.cubic),
+      });
+      scheduleOnRN(setUiHidden, false);
+    },
   });
   const tap = useTapGesture({
     testID: 'story-tap',
-    runOnJS: true,
     maxDuration: motion.tapMaxDurationMs,
     maxDistance: motion.tapMaxDistance,
-    onActivate: (e) => handleTapAt(e.x),
+    onActivate: (e) => {
+      'worklet';
+      scheduleOnRN(handleTapAt, e.x);
+    },
   });
   const gesture = useExclusiveGestures(longPress, tap);
-
-  const uiOpacity = useSharedValue(1);
-  useEffect(() => {
-    uiOpacity.value = withTiming(pressed ? 0 : 1, {
-      duration: reduced
-        ? motion.reducedUiFadeMs
-        : pressed
-          ? motion.uiHideMs
-          : motion.uiShowMs,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [pressed, uiOpacity, reduced, motion]);
   const uiStyle = useAnimatedStyle(() => ({ opacity: uiOpacity.value }));
 
   return (
@@ -179,8 +191,14 @@ function StoryPage({
             <ImageMedia
               story={story}
               transitionMs={motion.thumbCrossfadeMs}
-              onDisplay={() => setReady(true)}
-              onError={() => setFailed(true)}
+              onDisplay={() => {
+                setReady(true);
+                mediaBlocked.value = false;
+              }}
+              onError={() => {
+                setFailed(true);
+                mediaBlocked.value = true;
+              }}
             />
           )}
           {showLoading && <LoadingIndicator />}
@@ -188,7 +206,7 @@ function StoryPage({
       </GestureDetector>
       <Animated.View
         testID="story-ui"
-        pointerEvents={pressed ? 'none' : 'box-none'}
+        pointerEvents={uiHidden ? 'none' : 'box-none'}
         style={[StyleSheet.absoluteFill, uiStyle]}
       >
         {children}
