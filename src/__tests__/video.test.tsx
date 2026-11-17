@@ -255,6 +255,28 @@ describe('video thumb and playback', () => {
   });
 });
 
+describe('config mediaErrorAdvanceMs', () => {
+  it('1000 advances after an error at 1000ms', async () => {
+    const onNav = jest.fn();
+    await render(
+      <StoryProvider
+        users={users}
+        scheme="dark"
+        config={{ mediaErrorAdvanceMs: 1000 }}
+      >
+        <VideoSlotsProvider active={ada.stories[0]} next={undefined}>
+          <Page onNav={onNav} />
+        </VideoSlotsProvider>
+      </StoryProvider>
+    );
+    await emit(v1, 'statusChange', { status: 'error' });
+    await advance(900);
+    expect(onNav).not.toHaveBeenCalled();
+    await advance(200);
+    expect(onNav).toHaveBeenCalledWith(tapNext(state, users));
+  });
+});
+
 describe('player cap', () => {
   it('creates at most 2 players with 3 user pages mounted', async () => {
     await render(

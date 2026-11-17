@@ -1,9 +1,9 @@
 export interface StoryConfig {
-  imageDurationMs: 5000;
-  tapZoneRatio: 0.3;
-  sortUnseenFirst: true;
-  autoAdvanceWithScreenReader: false;
-  mediaErrorAdvanceMs: 4000;
+  imageDurationMs: number;
+  tapZoneRatio: number;
+  sortUnseenFirst: boolean;
+  autoAdvanceWithScreenReader: boolean;
+  mediaErrorAdvanceMs: number;
   /** Overrides the header time label; default is formatRelativeTime. */
   formatTime?: (createdAt: number) => string;
   motion: {

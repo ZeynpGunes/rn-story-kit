@@ -68,6 +68,19 @@ describe('StoryList', () => {
     ]);
   });
 
+  it('sortUnseenFirst: false keeps the input order', async () => {
+    const seenAda = {
+      ...ada,
+      stories: ada.stories.map((s) => ({ ...s, seen: true })),
+    };
+    await render(<StoryList />, {
+      wrapper: wrap([seenAda, bob], { config: { sortUnseenFirst: false } }),
+    });
+    expect(
+      screen.getAllByRole('button').map((b) => b.props.accessibilityLabel)
+    ).toEqual(['Ada, seen, 3 stories', 'Bob, new story, 1 stories']);
+  });
+
   it('renders nothing for no users', async () => {
     await render(<StoryList />, { wrapper: wrap([]) });
     expect(screen.queryByTestId('story-list')).toBeNull();
