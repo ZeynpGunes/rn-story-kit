@@ -58,7 +58,7 @@ export function StoryRing({
               {stops.map((color, i) => (
                 <Stop
                   key={i}
-                  offset={i / (stops.length - 1)}
+                  offset={stops.length > 1 ? i / (stops.length - 1) : 0}
                   stopColor={color}
                 />
               ))}

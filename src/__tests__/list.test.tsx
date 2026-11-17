@@ -133,7 +133,75 @@ describe('StoryList', () => {
   });
 });
 
+describe('StoryList robustness', () => {
+  const openWith = async (measure: () => Promise<Rect | null>) => {
+    const onOpen = jest.fn();
+    let opened: any;
+    function Probe() {
+      const ctx = useStoryContext();
+      opened = ctx.opened;
+      useEffect(() => ctx.registry.register('ada', measure), [ctx]);
+      return null;
+    }
+    await render(
+      <>
+        <StoryList />
+        <Probe />
+      </>,
+      { wrapper: wrap([ada], { onOpen }) }
+    );
+    return { onOpen, get: () => opened };
+  };
+
+  it('opens without rect when measure never resolves', async () => {
+    const r = await openWith(() => new Promise(() => {}));
+    const start = Date.now();
+    await fireEvent.press(screen.getByLabelText('Ada, new story, 3 stories'));
+    expect(Date.now() - start).toBeGreaterThanOrEqual(140);
+    await act(async () => {});
+    expect(r.onOpen).toHaveBeenCalledWith('ada');
+    expect(r.get()).toEqual({ userId: 'ada', rect: undefined });
+  });
+
+  it('opens without rect when measure rejects', async () => {
+    const r = await openWith(() => Promise.reject(new Error('boom')));
+    await fireEvent.press(screen.getByLabelText('Ada, new story, 3 stories'));
+    expect(r.get()).toEqual({ userId: 'ada', rect: undefined });
+  });
+
+  it('calls the latest onEndReached after rerender', async () => {
+    const first = jest.fn();
+    const second = jest.fn();
+    const el = (cb: () => void) => (
+      <StoryProvider users={[ada]} scheme="light" onEndReached={cb}>
+        <StoryList />
+      </StoryProvider>
+    );
+    const view = await render(el(first));
+    await view.rerender(el(second));
+    await fireEvent(screen.getByTestId('story-list'), 'endReached');
+    expect(second).toHaveBeenCalled();
+    expect(first).not.toHaveBeenCalled();
+  });
+});
+
 describe('StoryRing', () => {
+  it('handles a single colour without NaN offsets', async () => {
+    await render(
+      <StoryRing
+        size="md"
+        seen={false}
+        avatar="a"
+        ringId="s"
+        palette={['#123456']}
+      />,
+      { wrapper: wrap([]) }
+    );
+    const stops = findGradient('s').children ?? [];
+    expect(stops).toHaveLength(1);
+    expect(stops[0]!.props.offset).toBe(0);
+  });
+
   it('uses unique gradient ids per ring', async () => {
     await render(
       <>
