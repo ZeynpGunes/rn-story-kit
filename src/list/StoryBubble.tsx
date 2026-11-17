@@ -73,7 +73,7 @@ export function StoryBubble({
       testID={`bubble-${user.id}`}
       style={[
         styles.item,
-        { width: theme.list.itemWidth },
+        { width: theme.list.itemWidth, alignSelf: 'flex-start' },
         hiddenUserId === user.id && styles.hidden,
       ]}
     >

@@ -101,6 +101,13 @@ describe('StoryList', () => {
     expect(screen.getByTestId('bubble-bob')).toBeTruthy();
   });
 
+  it('does not stretch the list to fill the parent height', async () => {
+    await render(<StoryList />, { wrapper: wrap([ada, bob]) });
+    const list = screen.getByTestId('story-list');
+    const style = Object.assign({}, ...[list.props.style].flat(2));
+    expect(style.flexGrow).toBe(0);
+  });
+
   it('sortUnseenFirst: false keeps the input order', async () => {
     const seenAda = {
       ...ada,

@@ -43,9 +43,15 @@ export function StoryList({
       data={data}
       extraData={version}
       keyExtractor={(u) => u.id}
-      style={style}
+      // Don't stretch to the parent height — otherwise each bubble's
+      // Pressable fills the screen and taps below the row open stories.
+      style={[{ flexGrow: 0 }, style]}
       contentContainerStyle={[
-        { paddingHorizontal: theme.list.paddingH, gap: theme.list.gap },
+        {
+          paddingHorizontal: theme.list.paddingH,
+          gap: theme.list.gap,
+          alignItems: 'flex-start',
+        },
         contentContainerStyle,
       ]}
       ListHeaderComponent={ListHeaderComponent}
