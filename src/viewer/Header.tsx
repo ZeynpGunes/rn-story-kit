@@ -1,19 +1,30 @@
 import { Image } from 'expo-image';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
+import { formatRelativeTime } from '../model/time';
+import { useStoryContext } from '../provider/StoryProvider';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
-import type { StoryUser } from '../types';
+import type { StoryItem, StoryUser } from '../types';
 import { closeLabel } from './a11y';
 
 export interface HeaderProps {
   user: StoryUser;
+  story: StoryItem;
   safeAreaTop: number;
   onClose(): void;
 }
 
 /** Default header: avatar + name row and an always-visible X. */
-export function Header({ user, safeAreaTop, onClose }: HeaderProps) {
+export function Header({ user, story, safeAreaTop, onClose }: HeaderProps) {
   const { header, progress } = useStoryTheme();
+  const { config } = useStoryContext();
+  const time =
+    story.createdAt === undefined
+      ? null
+      : (
+          config.formatTime ??
+          ((t: number) => formatRelativeTime(t, Date.now()))
+        )(story.createdAt);
   const progressBottom = safeAreaTop + progress.topInset + progress.height;
   const { icon, hit, stroke, color, right } = header.closeBtn;
   const shadow = {
@@ -53,6 +64,22 @@ export function Header({ user, safeAreaTop, onClose }: HeaderProps) {
         >
           {user.name}
         </Text>
+        {time !== null && (
+          <Text
+            style={[
+              shadow,
+              {
+                marginLeft: header.time.marginLeft,
+                fontSize: header.time.size,
+                lineHeight: header.time.lineHeight,
+                fontWeight: header.time.weight as '400',
+                color: header.time.color,
+              },
+            ]}
+          >
+            {time}
+          </Text>
+        )}
       </View>
       <Pressable
         accessibilityRole="button"

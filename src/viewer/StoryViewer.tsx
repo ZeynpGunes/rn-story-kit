@@ -217,6 +217,7 @@ export function StoryViewer({
           ) : (
             <Header
               user={user}
+              story={story}
               safeAreaTop={insets.top}
               onClose={requestClose}
             />
