@@ -5,7 +5,12 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import {
+  StyleSheet,
+  useWindowDimensions,
+  View,
+  type AccessibilityActionEvent,
+} from 'react-native';
 import {
   GestureDetector,
   useCompetingGestures,
@@ -31,6 +36,7 @@ import { tapNext, tapPrev, type NavResult } from '../model/navigation';
 import { useStoryContext } from '../provider/StoryProvider';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { StoryItem, StoryUser } from '../types';
+import { nextStoryAction, prevStoryAction } from './a11y';
 import { LoadingIndicator } from './LoadingIndicator';
 import { ImageMedia } from './media/ImageMedia';
 import { MediaBackground } from './media/MediaBackground';
@@ -60,6 +66,11 @@ export interface UserPageProps {
   /** Chrome (scrim, header) drawn over the media; hidden while pressing. */
   children?: ReactNode;
 }
+
+const a11yActions = [
+  { name: 'next', label: nextStoryAction },
+  { name: 'prev', label: prevStoryAction },
+];
 
 /** One user's page. Remounts per story so timer and media state reset. */
 export function UserPage(props: UserPageProps) {
@@ -172,6 +183,19 @@ function StoryPage({
     return () => clearTimeout(t);
   }, [isActive, ready, failed, loading.showAfterMs]);
 
+  const goPrev = useCallback(() => {
+    const c = navRef.current;
+    c.onNav(tapPrev(c.navState, c.users, c.lastViewed));
+  }, []);
+
+  const onA11yAction = useCallback(
+    (e: AccessibilityActionEvent) => {
+      if (e.nativeEvent.actionName === 'next') goNext();
+      else if (e.nativeEvent.actionName === 'prev') goPrev();
+    },
+    [goNext, goPrev]
+  );
+
   const handleTapAt = useCallback(
     (x: number) => {
       const c = navRef.current;
@@ -235,7 +259,13 @@ function StoryPage({
   return (
     <View style={styles.fill}>
       <GestureDetector gesture={gesture}>
-        <Animated.View testID="story-tap-area" style={styles.fill}>
+        <Animated.View
+          testID="story-tap-area"
+          style={styles.fill}
+          accessible={isActive ? true : undefined}
+          accessibilityActions={isActive ? a11yActions : undefined}
+          onAccessibilityAction={isActive ? onA11yAction : undefined}
+        >
           <MediaBackground story={story} />
           {story.type === 'image' && !failed && (
             <ImageMedia

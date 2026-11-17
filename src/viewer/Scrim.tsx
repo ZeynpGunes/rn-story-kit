@@ -24,4 +24,31 @@ export function Scrim({ safeAreaTop }: { safeAreaTop: number }) {
 
 const styles = StyleSheet.create({
   scrim: { position: 'absolute', top: 0, left: 0, right: 0 },
+  bottomScrim: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    height: 120,
+  },
 });
+
+/** Optional bottom scrim behind a footer: 120px, transparent -> 0.45 black. */
+export function BottomScrim() {
+  return (
+    <Svg
+      pointerEvents="none"
+      style={styles.bottomScrim}
+      width="100%"
+      height="100%"
+    >
+      <Defs>
+        <LinearGradient id="story-bottom-scrim" x1="0" y1="0" x2="0" y2="1">
+          <Stop offset="0" stopColor="#000" stopOpacity={0} />
+          <Stop offset="1" stopColor="#000" stopOpacity={0.45} />
+        </LinearGradient>
+      </Defs>
+      <Rect width="100%" height="100%" fill="url(#story-bottom-scrim)" />
+    </Svg>
+  );
+}

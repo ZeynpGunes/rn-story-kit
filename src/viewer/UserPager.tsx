@@ -35,6 +35,8 @@ import {
 import {
   enterUser,
   swipeToUser,
+  tapNext,
+  tapPrev,
   type NavResult,
   type NavState,
 } from '../model/navigation';
@@ -56,11 +58,21 @@ type SpringConfig = {
 
 const ROLES: Role[] = [-1, 0, 1];
 
+export interface PagerCommands {
+  next(): void;
+  prev(): void;
+  goToUser(userId: string): void;
+}
+
 export interface UserPagerProps {
   users: StoryUser[];
   nav: NavState & { restarts: number };
   /** userId -> last viewed story index, for previous-user taps. */
   lastViewed: Record<string, number>;
+  /** Hold from outside the pager (app background, screen reader, API). */
+  externalHeld: SharedValue<boolean>;
+  /** Receives the pager's navigation commands while mounted. */
+  commandsRef: { current: PagerCommands | null };
   /** Vertical drag offset; the viewer frame follows it (dismiss/swipe-up). */
   dragY: SharedValue<number>;
   /** Applies a navigation; user changes arrive only after their transition. */
@@ -82,6 +94,8 @@ export function UserPager({
   users,
   nav,
   lastViewed,
+  externalHeld,
+  commandsRef,
   dragY,
   onNav,
   onMediaFirstFrame,
@@ -104,7 +118,9 @@ export function UserPager({
   const fadeSide = useSharedValue<Role>(0);
   const dragging = useSharedValue(false);
   const panIgnored = useSharedValue(false);
-  const held = useDerivedValue(() => dragging.value || isTransitioning.value);
+  const held = useDerivedValue(
+    () => dragging.value || isTransitioning.value || externalHeld.value
+  );
   const inputBlocked = useDerivedValue(
     () => isTransitioning.value || isClosing.value
   );
@@ -114,6 +130,8 @@ export function UserPager({
       : 1
   );
 
+  const lastViewedRef = useRef(lastViewed);
+  lastViewedRef.current = lastViewed;
   const [pending, setPending] = useState<UserNav | null>(null);
   const busy = useRef(false);
   const latest = useRef({ nav, users, onNav });
@@ -185,6 +203,37 @@ export function UserPager({
     },
     [isTransitioning]
   );
+
+  // Imperative navigation takes the same path as taps and a11y actions.
+  useEffect(() => {
+    commandsRef.current = {
+      next: () => {
+        const c = latest.current;
+        onPageNav(tapNext(c.nav, c.users));
+      },
+      prev: () => {
+        const c = latest.current;
+        onPageNav(tapPrev(c.nav, c.users, lastViewedRef.current));
+      },
+      goToUser: (userId) => {
+        const c = latest.current;
+        const index = c.users.findIndex((u) => u.id === userId);
+        const delta = index - c.nav.userIndex;
+        if (index === -1 || delta === 0) return;
+        const r: UserNav = {
+          kind: 'user',
+          direction: delta > 0 ? 1 : -1,
+          state: enterUser(index, c.users, store),
+        };
+        // Only the neighbours are mounted: farther targets jump, no cube.
+        if (Math.abs(delta) === 1) onPageNav(r);
+        else if (!busy.current && !isTransitioning.value) c.onNav(r);
+      },
+    };
+    return () => {
+      commandsRef.current = null;
+    };
+  }, [commandsRef, onPageNav, store, isTransitioning]);
 
   // Programmatic user change: animate once the target page is rendered.
   useEffect(() => {
