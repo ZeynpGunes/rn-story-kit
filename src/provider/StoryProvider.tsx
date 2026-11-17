@@ -72,7 +72,8 @@ export interface StoryContextValue {
   /** Open request; the overlay that consumes it arrives in Task 8. */
   opened: { userId: string; rect?: Rect } | null;
   api: StoryViewerApi;
-  props: StoryProviderProps;
+  /** Stable; always calls the latest onEndReached prop. */
+  onEndReached(): void;
 }
 
 const StoryContext = createContext<StoryContextValue | null>(null);
@@ -122,6 +123,7 @@ export function StoryProvider(props: StoryProviderProps) {
     });
   }
   const store = storeRef.current;
+  const onEndReached = useCallback(() => latest.current.onEndReached?.(), []);
   const [registry] = useState(createRectRegistry);
 
   useEffect(() => {
@@ -164,11 +166,9 @@ export function StoryProvider(props: StoryProviderProps) {
       registry,
       opened,
       api,
-      props,
+      onEndReached,
     }),
-    // props identity changes every render; callbacks are read via `latest`.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [users, mergedConfig, scheme, store, registry, opened, api]
+    [users, mergedConfig, scheme, store, registry, opened, api, onEndReached]
   );
 
   return (

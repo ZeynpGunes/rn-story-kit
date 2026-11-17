@@ -52,6 +52,7 @@ export interface StoryConfig {
     thumbCrossfadeMs: number;
     thumbVideoCrossfadeMs: number;
     seenRingMs: number;
+    measureTimeoutMs: number;
     gradientSaturationBoost: number;
     gradientMaxLightness: number;
     gradientMidMix: number;
@@ -118,6 +119,7 @@ export const defaultConfig: StoryConfig = {
     thumbCrossfadeMs: 220,
     thumbVideoCrossfadeMs: 180,
     seenRingMs: 400,
+    measureTimeoutMs: 150,
     gradientSaturationBoost: 1.1,
     gradientMaxLightness: 0.45,
     gradientMidMix: 0.25,

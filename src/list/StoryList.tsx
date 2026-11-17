@@ -17,7 +17,7 @@ export function StoryList({
   ListHeaderComponent,
 }: StoryListProps = {}) {
   const theme = useStoryTheme();
-  const { users, store, config, props } = useStoryContext();
+  const { users, store, config, onEndReached } = useStoryContext();
   const version = useSeenVersion();
 
   const data = useMemo(
@@ -43,7 +43,7 @@ export function StoryList({
         contentContainerStyle,
       ]}
       ListHeaderComponent={ListHeaderComponent}
-      onEndReached={props.onEndReached}
+      onEndReached={onEndReached}
       renderItem={({ item }) => (
         <StoryBubble user={item} seen={isUserSeen(item, store)} />
       )}

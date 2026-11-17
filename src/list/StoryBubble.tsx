@@ -14,7 +14,7 @@ export function StoryBubble({
   seen: boolean;
 }) {
   const theme = useStoryTheme();
-  const { registry, api } = useStoryContext();
+  const { registry, api, config } = useStoryContext();
   const ringRef = useRef<ComponentRef<typeof View>>(null);
   const { name } = theme.list;
 
@@ -34,7 +34,14 @@ export function StoryBubble({
   );
 
   const onPress = async () => {
-    const rect = await registry.measure(user.id);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<null>((resolve) => {
+      timer = setTimeout(resolve, config.motion.measureTimeoutMs, null);
+    });
+    const rect = await Promise.race([registry.measure(user.id), timeout]).catch(
+      () => null
+    );
+    clearTimeout(timer);
     api.open(user.id, rect ?? undefined);
   };
 
