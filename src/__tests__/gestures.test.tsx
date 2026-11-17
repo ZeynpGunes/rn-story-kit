@@ -1,8 +1,14 @@
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { type ReactNode } from 'react';
-import { Dimensions } from 'react-native';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from '@testing-library/react-native';
+import { useState, type ReactNode } from 'react';
+import { Dimensions, Text } from 'react-native';
 import { createGestureController } from 'react-native-gesture-handler/jest-utils';
-import { getAnimatedStyle } from 'react-native-reanimated';
+import { Easing, getAnimatedStyle } from 'react-native-reanimated';
 import { defaultConfig } from '../config';
 import { StoryList } from '../list/StoryList';
 import {
@@ -10,7 +16,8 @@ import {
   dismissStyle,
   rubberBand,
 } from '../model/gestureMath';
-import { StoryProvider } from '../provider/StoryProvider';
+import * as navigation from '../model/navigation';
+import { StoryProvider, type StorySlotProps } from '../provider/StoryProvider';
 import { useStoryViewer } from '../provider/useStoryViewer';
 import type { StoryItem, StoryUser } from '../types';
 
@@ -113,6 +120,7 @@ const startPan = async (id: 'story-pan-x' | 'story-pan-y', d: number) => {
     pan.update({ [key]: d, [vKey]: 0 });
   });
   return {
+    pan,
     end: async (v = 0) => {
       await act(async () => {
         pan.end({ [key]: d, [vKey]: v });
@@ -146,7 +154,10 @@ beforeEach(() => {
   mockReduced.value = false;
   jest.useFakeTimers();
 });
-afterEach(() => jest.useRealTimers());
+afterEach(() => {
+  jest.restoreAllMocks();
+  jest.useRealTimers();
+});
 
 describe('horizontal swipe', () => {
   it('dx -140 on U0 settles on U1 at its first unseen story', async () => {
@@ -246,6 +257,133 @@ describe('horizontal swipe', () => {
     await advance(1000);
     expect(opacityOf('U1')).toBe(0);
     expect(opacityOf('U0')).not.toBe(0);
+  });
+});
+
+describe('transition hand-over', () => {
+  it('a committed swipe switches roles on the UI thread before React commits', async () => {
+    await open('U0');
+    const p = await startPan('story-pan-x', -140);
+    let seen: { u1: Style; u0: Style; bob: boolean } | null = null;
+    await act(async () => {
+      p.pan.end({ translationX: -140, velocityX: 0 });
+      jest.advanceTimersByTime(1000);
+      // Still inside act: no React render or effect has run yet.
+      seen = {
+        u1: styleOf(pageId('U1')),
+        u0: styleOf(pageId('U0')),
+        bob: screen.queryByText('Bob') !== null,
+      };
+    });
+    const { u1, u0, bob } = seen!;
+    expect(bob).toBe(false);
+    expect(u1.opacity).toBe(1);
+    expect((u1.transform ?? []).some((t) => 'rotateY' in t)).toBe(false);
+    expect(
+      (Object.assign({}, ...(u1.transform ?? [])) as { translateX: number })
+        .translateX
+    ).toBeCloseTo(0);
+    expect(u0.opacity).toBe(0);
+    expectActive('Bob', 'Story 2 of 3');
+  });
+
+  it('closing during a transition keeps the active user', async () => {
+    const onClose = jest.fn();
+    await open('U0', { onClose }, <StoryList />);
+    const opacityOf = (id: string) =>
+      Object.assign(
+        {},
+        ...[
+          screen.getByTestId(`bubble-${id}`, { includeHiddenElements: true })
+            .props.style,
+        ].flat(2)
+      ).opacity;
+    await tapRight();
+    await advance(50);
+    await tapRight();
+    await advance(50);
+    await advance(100); // mid-cube
+    await fireEvent.press(screen.getByLabelText('Close stories'));
+    await advance(250); // the cube would have finished by now
+    expect(screen.getByTestId('story-viewer')).toBeTruthy();
+    expect(screen.getByText('Ada')).toBeTruthy();
+    expect(opacityOf('U0')).toBe(0);
+    expect(opacityOf('U1')).not.toBe(0);
+    await advance(1);
+    await advance(500);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('a swipe whose target vanished resets and keeps input working', async () => {
+    jest.spyOn(navigation, 'swipeToUser').mockReturnValueOnce(null);
+    await open('U0');
+    await pan('story-pan-x', -140);
+    await advance(1000);
+    expectActive('Ada', 'Story 1 of 2');
+    expect(styleOf(pageId('U0')).opacity).toBe(1);
+    expect(transformOf(pageId('U0')).translateX).toBeCloseTo(0);
+    expect(styleOf(pageId('U1')).opacity).toBe(0);
+    await tapRight();
+    await advance(50);
+    expectActive('Ada', 'Story 2 of 2');
+  });
+
+  it('extra taps during the hop and the cube neither restart nor chain it', async () => {
+    const run = async (extraTaps: boolean) => {
+      await open('U0');
+      await tapRight();
+      await advance(50);
+      // Each programmatic cube start builds its easing once.
+      const cubeStarts = jest.spyOn(Easing, 'bezier');
+      await tapRight(); // last story: user change requested
+      if (extraTaps) await tapRight(); // during the scheduleOnRN hop
+      await advance(50);
+      if (extraTaps) await tapRight(); // during the cube
+      const samples: unknown[] = [];
+      for (let i = 0; i < 10; i++) {
+        await advance(40);
+        const bob = screen.queryByText('Bob') !== null;
+        samples.push([
+          bob,
+          // Layout offset of the incoming face (after the perspective).
+          bob ? null : styleOf(pageId('U1')).transform?.[1],
+        ]);
+        if (!bob) expect(pageExists('U2')).toBe(false);
+      }
+      expectActive('Bob', 'Story 1 of 3');
+      const starts = cubeStarts.mock.calls.length;
+      cubeStarts.mockRestore();
+      await cleanup();
+      return { samples, starts };
+    };
+    const single = await run(false);
+    const tapped = await run(true);
+    expect(single.starts).toBe(1);
+    expect(tapped.starts).toBe(1);
+    expect(tapped.samples).toEqual(single.samples);
+  });
+});
+
+describe('custom header', () => {
+  it('renders only for the active page and keeps its hooks across a user change', async () => {
+    const calls: string[] = [];
+    function HeaderProbe(p: StorySlotProps) {
+      const [n] = useState(1);
+      calls.push(p.user.id);
+      return <Text>{`hdr ${p.user.name} ${n}`}</Text>;
+    }
+    await open('U0', { renderHeader: HeaderProbe });
+    expect(new Set(calls)).toEqual(new Set(['U0']));
+    expect(
+      screen.queryByText('hdr Bob 1', { includeHiddenElements: true })
+    ).toBeNull();
+    await pan('story-pan-x', -140);
+    await advance(1000);
+    expect(screen.getByText('hdr Bob 1')).toBeTruthy();
+    expect(calls).not.toContain('U2');
+    expect(
+      screen.queryByText('hdr Cy 1', { includeHiddenElements: true })
+    ).toBeNull();
   });
 });
 

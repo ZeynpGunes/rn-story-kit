@@ -40,8 +40,8 @@ import {
 } from '../model/navigation';
 import { useStoryContext } from '../provider/StoryProvider';
 import type { StoryItem, StoryUser } from '../types';
-import { useViewerControls } from './StoryViewer';
 import { UserPage } from './UserPage';
+import { useViewerControls } from './viewerContext';
 
 type Motion = StoryConfig['motion'];
 /** Page position relative to the active user: previous, active, next. */
@@ -69,7 +69,8 @@ export interface UserPagerProps {
   renderChrome(
     user: StoryUser,
     story: StoryItem,
-    storyIndex: number
+    storyIndex: number,
+    active: boolean
   ): ReactNode;
 }
 
@@ -92,6 +93,10 @@ export function UserPager({
   const reduced = useReducedMotion();
   const m = config.motion;
 
+  // Active user index on the UI thread. Page roles derive from it, so a
+  // transition hands over in one UI frame; React only mounts and unmounts.
+  const activeIndex = useSharedValue(nav.userIndex);
+  const count = users.length;
   // Horizontal page offset in px; negative = finger left = next user.
   const offset = useSharedValue(0);
   // Reduced-motion crossfade progress and the side of the incoming user.
@@ -114,15 +119,36 @@ export function UserPager({
   const latest = useRef({ nav, users, onNav });
   latest.current = { nav, users, onNav };
 
-  // The new active page is rendered: drop the transition offset.
-  useLayoutEffect(() => {
+  // Align the UI state with React's active user and release input.
+  const resetTransition = useCallback(() => {
+    activeIndex.value = latest.current.nav.userIndex;
     offset.value = 0;
     fade.value = 0;
     fadeSide.value = 0;
     dragging.value = false;
     isTransitioning.value = false;
     busy.current = false;
-  }, [nav.userIndex, offset, fade, fadeSide, dragging, isTransitioning]);
+    setPending(null);
+  }, [activeIndex, offset, fade, fadeSide, dragging, isTransitioning]);
+
+  useLayoutEffect(resetTransition, [nav.userIndex, resetTransition]);
+
+  /**
+   * UI thread, at the end of a transition: switch roles and drop the offset
+   * in the same frame. False while closing: the user must not change then.
+   */
+  const handOver = useCallback(
+    (direction: 1 | -1) => {
+      'worklet';
+      if (isClosing.value) return false;
+      activeIndex.value = activeIndex.value + direction;
+      offset.value = 0;
+      fade.value = 0;
+      fadeSide.value = 0;
+      return true;
+    },
+    [isClosing, activeIndex, offset, fade, fadeSide]
+  );
 
   const commit = useCallback((r: UserNav) => {
     setPending(null);
@@ -134,8 +160,9 @@ export function UserPager({
       const c = latest.current;
       const r = swipeToUser(c.nav, direction, c.users, store);
       if (r?.kind === 'user') commit(r);
+      else resetTransition();
     },
-    [store, commit]
+    [store, commit, resetTransition]
   );
 
   const swipeUp = useCallback(() => {
@@ -164,7 +191,9 @@ export function UserPager({
     if (!pending) return;
     const done = (finished?: boolean) => {
       'worklet';
-      if (finished) scheduleOnRN(commit, pending);
+      if (finished && handOver(pending.direction)) {
+        scheduleOnRN(commit, pending);
+      }
     };
     if (reduced) {
       fadeSide.value = pending.direction;
@@ -187,13 +216,18 @@ export function UserPager({
     m.cubeProgrammaticMs,
     m.cubeProgrammaticBezier,
     commit,
+    handOver,
     offset,
     fade,
     fadeSide,
   ]);
 
-  const hasPrev = nav.userIndex > 0;
-  const hasNext = nav.userIndex < users.length - 1;
+  const canGo = (direction: number) => {
+    'worklet';
+    return direction === 1
+      ? activeIndex.value < count - 1
+      : direction === -1 && activeIndex.value > 0;
+  };
   const settleSpring: SpringConfig = {
     damping: m.cubeSettleDamping,
     stiffness: m.cubeSettleStiffness,
@@ -233,8 +267,7 @@ export function UserPager({
   };
   const followX = (dx: number) => {
     'worklet';
-    const open = dx < 0 ? hasNext : hasPrev;
-    return open
+    return canGo(dx < 0 ? 1 : -1)
       ? Math.max(-width, Math.min(width, dx))
       : rubberBand(dx, width, m.rubberBandFactor);
   };
@@ -257,15 +290,15 @@ export function UserPager({
       const dir = e.canceled
         ? 0
         : swipeDecision(e.translationX, e.velocityX, width, m);
-      if ((dir === 1 && hasNext) || (dir === -1 && hasPrev)) {
+      if (dir !== 0 && canGo(dir)) {
         isTransitioning.value = true;
         offset.value = settle(-dir * width, settleSpring, (finished) => {
           'worklet';
-          if (finished) scheduleOnRN(commitSwipe, dir);
+          if (finished && handOver(dir)) scheduleOnRN(commitSwipe, dir);
         });
         return;
       }
-      const atEdge = e.translationX < 0 ? !hasNext : !hasPrev;
+      const atEdge = !canGo(e.translationX < 0 ? 1 : -1);
       offset.value = settle(0, atEdge ? rubberSpring : settleSpring, release);
     },
   });
@@ -318,12 +351,13 @@ export function UserPager({
           <PagerSlot
             key={user.id}
             testID={`story-page-${user.id}`}
-            role={role}
+            active={role === 0}
+            slotIndex={index}
+            activeIndex={activeIndex}
+            count={count}
             offset={offset}
             fade={fade}
             fadeSide={fadeSide}
-            hasPrev={hasPrev}
-            hasNext={hasNext}
             reduced={reduced}
             width={width}
             m={m}
@@ -342,7 +376,7 @@ export function UserPager({
               onNav={onPageNav}
               onMediaFirstFrame={onMediaFirstFrame}
             >
-              {renderChrome(user, story, storyIndex)}
+              {renderChrome(user, story, storyIndex, role === 0)}
             </UserPage>
           </PagerSlot>
         );
@@ -353,12 +387,15 @@ export function UserPager({
 
 interface PagerSlotProps {
   testID: string;
-  role: Role;
+  /** React's view of the active page: touches and accessibility. */
+  active: boolean;
+  /** This page's user index; its role is slotIndex - activeIndex. */
+  slotIndex: number;
+  activeIndex: SharedValue<number>;
+  count: number;
   offset: SharedValue<number>;
   fade: SharedValue<number>;
   fadeSide: SharedValue<Role>;
-  hasPrev: boolean;
-  hasNext: boolean;
   reduced: boolean;
   width: number;
   m: Motion;
@@ -373,18 +410,20 @@ const place = (t: object[], translateX: number) => {
 
 function PagerSlot({
   testID,
-  role,
+  active,
+  slotIndex,
+  activeIndex,
+  count,
   offset,
   fade,
   fadeSide,
-  hasPrev,
-  hasNext,
   reduced,
   width,
   m,
   children,
 }: PagerSlotProps) {
   const style = useAnimatedStyle(() => {
+    const role = slotIndex - activeIndex.value;
     const x = offset.value;
     const crossfade = fadeSide.value !== 0;
     // Incoming user is on the side the finger drags toward; none at rest.
@@ -393,7 +432,8 @@ function PagerSlot({
       if (crossfade) {
         return { opacity: 1 - fade.value, transform: [{ translateX: 0 }] };
       }
-      const hasIncoming = side === 1 ? hasNext : side === -1 ? hasPrev : false;
+      const target = activeIndex.value + side;
+      const hasIncoming = side !== 0 && target >= 0 && target < count;
       if (reduced || !hasIncoming) {
         return { opacity: 1, transform: [{ translateX: x }] };
       }
@@ -416,6 +456,7 @@ function PagerSlot({
   });
 
   const shadeStyle = useAnimatedStyle(() => {
+    const role = slotIndex - activeIndex.value;
     const x = offset.value;
     if (role === 0 || reduced || x * role >= 0) return { opacity: 0 };
     return {
@@ -424,7 +465,6 @@ function PagerSlot({
     };
   });
 
-  const active = role === 0;
   return (
     <Animated.View
       testID={testID}
