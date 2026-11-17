@@ -5,7 +5,7 @@ Instagram-style stories for React Native.
 ## Requirements
 
 - React Native New Architecture only. A development build is required (Expo Go is not supported, because of the native modules).
-- Requires the New Architecture and React Native Reanimated 4 (`react-native-worklets`). Your minimum React Native version is whatever your installed Reanimated 4 release supports; the example app runs React Native 0.88.1 with Reanimated 4.7.1.
+- Requires React Native Reanimated 4 (`react-native-worklets`). Your minimum React Native version is whatever your installed Reanimated 4 release supports; the example app runs React Native 0.88.1 with Reanimated 4.7.1.
 
 ## Installation
 
