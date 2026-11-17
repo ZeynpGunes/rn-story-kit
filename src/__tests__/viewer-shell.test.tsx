@@ -64,7 +64,7 @@ describe('viewer shell', () => {
       screen.getByTestId('story-viewer').props.accessibilityViewIsModal
     ).toBe(true);
     expect(screen.getByText('Ada')).toBeTruthy();
-    expect(screen.getByTestId('story-placeholder').props.children).toBe('s2');
+    expect(screen.getByLabelText('Story 2 of 3')).toBeTruthy();
   });
 
   it('X has label and 44x44 hit area; onClose fires once after 300ms', async () => {
