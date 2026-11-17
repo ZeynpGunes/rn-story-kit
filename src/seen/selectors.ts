@@ -31,6 +31,14 @@ export function visibleUsers(
   });
 }
 
+/** Drops suggested users the viewer dismissed. Non-suggested users always stay. */
+export function withoutDismissed(
+  users: StoryUser[],
+  dismissedIds: ReadonlySet<string>
+): StoryUser[] {
+  return users.filter((u) => !(u.suggested === true && dismissedIds.has(u.id)));
+}
+
 /** Users that can open in the viewer (always need at least one story). */
 export function playbackUsers(users: StoryUser[]): StoryUser[] {
   return users.filter((u) => u.stories.length > 0);

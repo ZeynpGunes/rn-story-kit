@@ -345,7 +345,7 @@ export function StoryViewer({
       height: r.height,
       opacity: 1,
       borderRadius: Math.max(
-        (from.width / 2) * (1 - progress.value),
+        (from.radius ?? from.width / 2) * (1 - progress.value),
         dragRadius
       ),
       transform: [{ translateY }, { scale: dragScale }],

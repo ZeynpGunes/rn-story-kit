@@ -172,11 +172,27 @@ export function makeUsers(): StoryUser[] {
       stories: [image('kai', 1, 96, 900), image('kai', 2, 100, 880)],
     },
     {
+      id: 'goddess_kate',
+      name: 'goddess_kate',
+      avatar: avatar(10),
+      cover: 'https://picsum.photos/id/1011/400/600',
+      suggested: true,
+      stories: [image('goddess_kate', 1, 100, 60)],
+    },
+    {
       id: 'lena',
       name: 'lena',
       avatar: avatar(29),
       ringVariant: 'sunset',
       stories: [image('lena', 1, 10, 1000), image('lena', 2, 37, 990)],
+    },
+    {
+      id: 'mo_travels',
+      name: 'mo_travels',
+      avatar: avatar(64),
+      cover: 'https://picsum.photos/id/1015/400/600',
+      suggested: true,
+      stories: [image('mo_travels', 1, 76, 1100)],
     },
   ];
 }

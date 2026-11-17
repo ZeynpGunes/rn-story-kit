@@ -24,7 +24,7 @@ import type {
   StoryTheme,
   StoryUser,
 } from '../types';
-import { playbackUsers, sortUsers } from '../seen/selectors';
+import { playbackUsers, sortUsers, withoutDismissed } from '../seen/selectors';
 import { shouldShowDefaultFooter } from '../viewer/DefaultFooter';
 import { StoryViewer } from '../viewer/StoryViewer';
 import { createRectRegistry, type RectRegistry } from './rectRegistry';
@@ -54,7 +54,10 @@ export interface StoryProviderProps {
   onSendMessage?(story: StoryItem, user: StoryUser, text: string): void;
   onVoice?(story: StoryItem, user: StoryUser): void;
   onShare?(story: StoryItem, user: StoryUser): void;
+  /** Follow button on a person in the viewers list or on a suggested bubble. */
   onFollow?(person: StoryPerson): void;
+  /** X on a suggested bubble. The list hides the user; the app persists it. */
+  onDismissSuggestion?(user: StoryUser): void;
   /** Empty owner bubble (+) pressed — host navigates to create a story. */
   onAddStory?(): void;
   renderHeader?(p: StorySlotProps): ReactNode;
@@ -110,6 +113,13 @@ export interface StoryContextValue {
   onVoice(story: StoryItem, user: StoryUser): void;
   onShare(story: StoryItem, user: StoryUser): void;
   onFollow(person: StoryPerson): void;
+  /** Internal: suggested users the viewer followed or dismissed, this session. */
+  followedIds: ReadonlySet<string>;
+  dismissedIds: ReadonlySet<string>;
+  /** Internal: stable; follow a suggested user and hide its follow button. */
+  followSuggested(user: StoryUser): void;
+  /** Internal: stable; dismiss a suggested user and hide its bubble. */
+  dismissSuggestion(user: StoryUser): void;
   /** Internal: stable; empty-owner + control. */
   onAddStory(): void;
   /** Internal: the mounted viewer registers its close routine here. */
@@ -222,6 +232,40 @@ export function StoryProvider(props: StoryProviderProps) {
     []
   );
   const onAddStory = useCallback(() => latest.current.onAddStory?.(), []);
+  const [followedIds, setFollowedIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
+  const [dismissedIds, setDismissedIds] = useState<ReadonlySet<string>>(
+    () => new Set()
+  );
+  // Forget a user once it is gone or no longer suggested, so a later
+  // re-suggestion starts clean.
+  useEffect(() => {
+    const stillSuggested = new Set(
+      users.filter((u) => u.suggested === true).map((u) => u.id)
+    );
+    const prune = (prev: ReadonlySet<string>) => {
+      const next = new Set([...prev].filter((id) => stillSuggested.has(id)));
+      return next.size === prev.size ? prev : next;
+    };
+    setFollowedIds(prune);
+    setDismissedIds(prune);
+  }, [users]);
+  const dismissedRef = useRef(dismissedIds);
+  dismissedRef.current = dismissedIds;
+  const followSuggested = useCallback((user: StoryUser) => {
+    setFollowedIds((prev) => new Set(prev).add(user.id));
+    latest.current.onFollow?.({
+      id: user.id,
+      name: user.name,
+      avatar: user.avatar,
+      following: false,
+    });
+  }, []);
+  const dismissSuggestion = useCallback((user: StoryUser) => {
+    setDismissedIds((prev) => new Set(prev).add(user.id));
+    latest.current.onDismissSuggestion?.(user);
+  }, []);
 
   const mergedConfig = useMemo(() => {
     const merged = deepMerge(defaultConfig, config) as StoryConfig;
@@ -242,7 +286,7 @@ export function StoryProvider(props: StoryProviderProps) {
   const orderRef = useRef<string[]>([]);
   const opened = useMemo<StoryContextValue['opened']>(() => {
     if (!session) return null;
-    const visible = playbackUsers(users);
+    const visible = playbackUsers(withoutDismissed(users, dismissedIds));
     const byId = new Map(visible.map((u) => [u.id, u]));
     const kept = orderRef.current.filter((id) => byId.has(id));
     const added = visible.filter((u) => !kept.includes(u.id)).map((u) => u.id);
@@ -254,7 +298,7 @@ export function StoryProvider(props: StoryProviderProps) {
       users: live,
       userIndex: live.findIndex((u) => u.id === session.userId),
     };
-  }, [session, users]);
+  }, [session, users, dismissedIds]);
 
   const openedRef = useRef(session);
   const closerRef = useRef<(() => void) | null>(null);
@@ -267,7 +311,9 @@ export function StoryProvider(props: StoryProviderProps) {
         // cannot slip through before React re-renders.
         if (openedRef.current) return;
         const ordered = sortUsers(
-          playbackUsers(latest.current.users),
+          playbackUsers(
+            withoutDismissed(latest.current.users, dismissedRef.current)
+          ),
           store,
           mergedConfig.sortUnseenFirst,
           mergedConfig.ownerBubble
@@ -338,6 +384,10 @@ export function StoryProvider(props: StoryProviderProps) {
       onVoice,
       onShare,
       onFollow,
+      followedIds,
+      dismissedIds,
+      followSuggested,
+      dismissSuggestion,
       onAddStory,
       closerRef,
       commandsRef,
@@ -366,6 +416,10 @@ export function StoryProvider(props: StoryProviderProps) {
       onVoice,
       onShare,
       onFollow,
+      followedIds,
+      dismissedIds,
+      followSuggested,
+      dismissSuggestion,
       onAddStory,
       renderHeader,
       renderFooter,

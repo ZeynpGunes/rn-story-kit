@@ -45,6 +45,10 @@ export interface StoryUser {
   ringColors?: string[];
   /** Marks the signed-in user's row; shows view/like insights instead of the action bar. */
   isOwner?: boolean;
+  /** A person the viewer does not follow; the bubble shows follow and dismiss buttons. */
+  suggested?: boolean;
+  /** Image shown on a card bubble. Falls back to `avatar`. */
+  cover?: string;
 }
 
 export interface Rect {
@@ -52,6 +56,8 @@ export interface Rect {
   y: number;
   width: number;
   height: number;
+  /** Corner radius of the source bubble; the viewer morphs from it. Defaults to width / 2. */
+  radius?: number;
 }
 
 export type ColorScheme = 'light' | 'dark';
@@ -136,6 +142,25 @@ export interface StoryTheme {
       icon: string;
       border: string;
       borderWidth: number;
+    };
+    card: {
+      width: number;
+      height: number;
+      radius: number;
+      ringWidth: number;
+      gap: number;
+      labelMarginTop: number;
+    };
+    suggested: {
+      follow: { size: number; bg: string; icon: string; inset: number };
+      close: { size: number; bg: string; icon: string; inset: number };
+      /** Badge sizes on the circle variant (card uses `follow.size`/`close.size`). */
+      circle: {
+        followSize: number;
+        closeSize: number;
+        /** Ring colour around the X badge; match the list background. */
+        closeBorder: string;
+      };
     };
   };
   avatarPlaceholder: string;

@@ -93,6 +93,8 @@ interface StoryUser {
   ringVariant?: 'classic' | 'ocean' | 'sunset' | 'mono' | 'closeFriends';
   ringColors?: string[]; // custom ring gradient stops
   isOwner?: boolean; // your row: shows view/like counts instead of the action bar
+  suggested?: boolean; // someone you do not follow: shows follow and dismiss buttons
+  cover?: string; // card variant image; falls back to avatar
 }
 
 interface StoryItem {
@@ -138,7 +140,8 @@ Users with no stories are hidden. Unseen users are sorted first.
 | `onSendMessage` | `(story, user, text) => void` | Reply field submitted. |
 | `onVoice` | `(story, user) => void` | Mic pressed. |
 | `onShare` | `(story, user) => void` | Share / send pressed. |
-| `onFollow` | `(person) => void` | Follow pressed in the viewers / likers list. |
+| `onFollow` | `(person) => void` | Follow pressed in the viewers / likers list, or on a suggested bubble (`following: false`). |
+| `onDismissSuggestion` | `(user) => void` | X pressed on a suggested bubble. The list hides the user at once; you persist the choice. |
 | `onAddStory` | `() => void` | Empty owner bubble (+) pressed — navigate to create. |
 | `renderHeader` | `(p: StorySlotProps) => ReactNode` | Replace the header. See below. |
 | `renderFooter` | `(p: StorySlotProps) => ReactNode` | Replaces the default footer entirely. |
@@ -174,7 +177,8 @@ All user-facing copy lives in `config.strings` (defaults in `defaultStrings`). P
 
 ### Other exports
 
-- `StoryList` (`style`, `contentContainerStyle`, `ListHeaderComponent`): the horizontal bubble list.
+- `StoryList` (`style`, `contentContainerStyle`, `ListHeaderComponent`, `variant`): the horizontal bubble list.
+- `StoryCardRing` (`seen`, `palette`, `cover`, `ringId`): the card-shaped ring on its own.
 - `StoryRing` (`size`, `seen`, `palette`, `avatar`, `ringId`): the ring on its own, for custom layouts.
 - `useStoryViewer()`: `{ open(userId, rect?), close(), next(), prev(), pause(), resume(), goToUser(userId), isOpen }`.
 - `StoryThemeProvider`, `useStoryTheme`, `lightTheme`, `darkTheme`, `palettes`, `defaultConfig`.
@@ -228,6 +232,7 @@ Pass `config` to `StoryProvider` to change behaviour. Defaults are in `defaultCo
 | `autoAdvanceWithScreenReader` | `false` | Keep auto-advancing while a screen reader is on. |
 | `formatTime` | relative time | `(createdAt: number) => string`, replaces the header time label. |
 | `actions` | all `true` | `{ message, like, voice, share }` — which controls show on others' stories. |
+| `list` | `{ variant: 'circle' }` | Default bubble shape: `'circle'` or `'card'`. The `StoryList` `variant` prop wins. |
 | `ownerBubble` | see below | Own-story row in the list (`show`, `pinFirst`, `showAddWhenEmpty`). |
 | `strings` | `defaultStrings` | UI + accessibility copy. See [Strings (i18n)](#strings-i18n). |
 | `motion` | see `defaultConfig` | Durations, springs and gesture thresholds. |
@@ -250,6 +255,31 @@ Mark the signed-in user with `isOwner: true`.
     strings: { yourStory: 'Hikayen', addStory: 'Hikaye ekle' },
   }}
 >
+```
+
+### Suggested stories
+
+Mark people the viewer does not follow with `suggested: true`. Their bubble gets two buttons:
+
+- **Follow**: calls `onFollow({ id, name, avatar, following: false })` and hides both buttons for that user. Send `suggested: false` in your next `users` update.
+- **X**: calls `onDismissSuggestion(user)` and removes the bubble at once (in memory, for the provider's lifetime). You persist the choice and stop sending the user.
+
+Neither button opens the viewer, and each has a hit area of at least 44x44. The owner bubble never shows them. The bubble label uses `strings.bubbleSuggested`; the buttons use `strings.followSuggested` and `strings.dismissSuggestion`.
+
+```tsx
+<StoryProvider
+  users={users}
+  onFollow={(person) => api.follow(person.id)}
+  onDismissSuggestion={(user) => api.dismissSuggestion(user.id)}
+>
+```
+
+### Card variant
+
+`<StoryList variant="card" />` (or `config.list.variant: 'card'` for the whole app) draws tall rounded cards instead of circles. The card shows `user.cover` (or `avatar`), a gradient border when unseen and a thin grey one when seen. An empty owner card shows the **+** near its bottom edge; suggested cards put the X top-right and Follow bottom-right. The viewer opens and closes from the card's real corner radius. Sizes and colours live in `theme.list.card` and `theme.list.suggested`.
+
+```tsx
+<StoryList variant="card" />
 ```
 
 ## Seen storage

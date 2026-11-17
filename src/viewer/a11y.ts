@@ -13,6 +13,12 @@ export const bubbleLabel = (
   return fill(seen ? copy.bubbleSeen : copy.bubbleNew, { name, count });
 };
 
+export const suggestedBubbleLabel = (
+  strings: StoryStrings | null | undefined,
+  name: string,
+  count: number
+) => fill(s(strings).bubbleSuggested, { name, count });
+
 export const progressLabel = (
   strings: StoryStrings | null | undefined,
   index: number,
