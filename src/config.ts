@@ -4,6 +4,8 @@ export interface StoryConfig {
   sortUnseenFirst: true;
   autoAdvanceWithScreenReader: false;
   mediaErrorAdvanceMs: 4000;
+  /** Overrides the header time label; default is formatRelativeTime. */
+  formatTime?: (createdAt: number) => string;
   motion: {
     tapCrossfadeMs: number;
     progressFillEasing: 'linear';

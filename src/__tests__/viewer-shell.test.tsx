@@ -150,4 +150,37 @@ describe('viewer shell', () => {
     expect(screen.queryByTestId('story-viewer')).toBeNull();
     expect(opacityOf()).not.toBe(0);
   });
+
+  it('shows a relative time label next to the name', async () => {
+    const now = 1_700_000_000_000;
+    jest.setSystemTime(now);
+    const timed: StoryUser = {
+      ...u1,
+      stories: [{ ...story('t1'), createdAt: now - 2 * 3600 * 1000 }],
+    };
+    await render(
+      <StoryProvider users={[timed]} scheme="light">
+        <Probe />
+      </StoryProvider>
+    );
+    await act(async () => viewer.open('U1', bubbleRect));
+    expect(screen.getByText('2h')).toBeTruthy();
+  });
+
+  it('ignores users with no stories and unknown ids', async () => {
+    const onOpen = jest.fn();
+    const empty: StoryUser = { ...u2, id: 'emptyUser', stories: [] };
+    await render(
+      <StoryProvider users={[u1, empty]} scheme="light" onOpen={onOpen}>
+        <Probe />
+      </StoryProvider>
+    );
+    await act(async () => viewer.open('emptyUser'));
+    await act(async () => viewer.open('nope'));
+    expect(screen.queryByTestId('story-viewer')).toBeNull();
+    expect(onOpen).not.toHaveBeenCalled();
+    await act(async () => viewer.open('U1', bubbleRect));
+    expect(screen.getByTestId('story-viewer')).toBeTruthy();
+    expect(onOpen).toHaveBeenCalledWith('U1');
+  });
 });
