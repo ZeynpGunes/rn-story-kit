@@ -7,21 +7,16 @@ import {
 } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import type { StoryActionsConfig } from '../config';
+import { useStoryContext } from '../provider/StoryProvider';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { StoryItem, StoryUser } from '../types';
-import {
-  likeActionLabel,
-  sendMessageLabel,
-  shareActionLabel,
-  voiceActionLabel,
-} from './a11y';
+import { likeActionLabel } from './a11y';
 import { HeartIcon } from './icons';
 
 export interface ActionsBarProps {
   user: StoryUser;
   story: StoryItem;
   actions: StoryActionsConfig;
-  replyPlaceholder: string;
   pause(): void;
   resume(): void;
   onLike?(story: StoryItem, user: StoryUser, nextLiked: boolean): void;
@@ -35,7 +30,6 @@ export function ActionsBar({
   user,
   story,
   actions,
-  replyPlaceholder,
   pause,
   resume,
   onLike,
@@ -44,6 +38,8 @@ export function ActionsBar({
   onShare,
 }: ActionsBarProps) {
   const { actions: t } = useStoryTheme();
+  const { config } = useStoryContext();
+  const s = config.strings;
   const [text, setText] = useState('');
   const [focused, setFocused] = useState(false);
   const liked = story.liked === true;
@@ -76,7 +72,7 @@ export function ActionsBar({
           testID="actions-message"
           value={text}
           onChangeText={setText}
-          placeholder={replyPlaceholder}
+          placeholder={s.replyPlaceholder}
           placeholderTextColor={t.input.placeholder}
           onFocus={() => {
             setFocused(true);
@@ -88,7 +84,7 @@ export function ActionsBar({
           }}
           onSubmitEditing={send}
           returnKeyType="send"
-          accessibilityLabel={sendMessageLabel}
+          accessibilityLabel={s.sendMessage}
           style={{
             flex: 1,
             height: t.input.height,
@@ -105,7 +101,7 @@ export function ActionsBar({
       {actions.like && (
         <IconButton
           testID="actions-like"
-          label={likeActionLabel(liked)}
+          label={likeActionLabel(s, liked)}
           size={t.icon.hit}
           onPress={() => onLike?.(story, user, !liked)}
         >
@@ -119,7 +115,7 @@ export function ActionsBar({
       {actions.voice && (
         <IconButton
           testID="actions-voice"
-          label={voiceActionLabel}
+          label={s.voiceMessage}
           size={t.icon.hit}
           onPress={() => onVoice?.(story, user)}
         >
@@ -129,7 +125,7 @@ export function ActionsBar({
       {actions.share && (
         <IconButton
           testID="actions-share"
-          label={shareActionLabel}
+          label={s.shareStory}
           size={t.icon.hit}
           onPress={() => {
             if (focused && text.trim()) {

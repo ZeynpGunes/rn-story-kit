@@ -36,7 +36,6 @@ import { tapNext, tapPrev, type NavResult } from '../model/navigation';
 import { useStoryContext } from '../provider/StoryProvider';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { StoryItem, StoryUser } from '../types';
-import { nextStoryAction, prevStoryAction } from './a11y';
 import { LoadingIndicator } from './LoadingIndicator';
 import { ImageMedia } from './media/ImageMedia';
 import { MediaBackground } from './media/MediaBackground';
@@ -69,11 +68,6 @@ export interface UserPageProps {
   children?: ReactNode;
 }
 
-const a11yActions = [
-  { name: 'next', label: nextStoryAction },
-  { name: 'prev', label: prevStoryAction },
-];
-
 /** One user's page. Remounts per story so timer and media state reset. */
 export function UserPage(props: UserPageProps) {
   const story = props.user.stories[props.storyIndex];
@@ -104,7 +98,11 @@ function StoryPage({
   children,
 }: UserPageProps & { story: StoryItem }) {
   const { config } = useStoryContext();
-  const { motion } = config;
+  const { motion, strings } = config;
+  const a11yActions = [
+    { name: 'next', label: strings.nextStory },
+    { name: 'prev', label: strings.prevStory },
+  ];
   const { loading } = useStoryTheme();
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();

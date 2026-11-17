@@ -218,10 +218,16 @@ export function StoryProvider(props: StoryProviderProps) {
     []
   );
 
-  const mergedConfig = useMemo(
-    () => deepMerge(defaultConfig, config) as StoryConfig,
-    [config]
-  );
+  const mergedConfig = useMemo(() => {
+    const merged = deepMerge(defaultConfig, config) as StoryConfig;
+    // Guarantee a full strings table even if a host passes a sparse override
+    // through a path that skips deepMerge on nested keys.
+    merged.strings = {
+      ...defaultConfig.strings,
+      ...(config?.strings ?? {}),
+    };
+    return merged;
+  }, [config]);
 
   // Open order, updated with removals and appends; never re-sorted.
   const orderRef = useRef<string[]>([]);

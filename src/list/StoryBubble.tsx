@@ -46,7 +46,12 @@ export function StoryBubble({
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={bubbleLabel(user.name, seen, user.stories.length)}
+      accessibilityLabel={bubbleLabel(
+        config.strings,
+        user.name,
+        seen,
+        user.stories.length
+      )}
       onPress={onPress}
       testID={`bubble-${user.id}`}
       style={[

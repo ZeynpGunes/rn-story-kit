@@ -3,6 +3,7 @@ import Animated, {
   useAnimatedStyle,
   type SharedValue,
 } from 'react-native-reanimated';
+import { useStoryContext } from '../provider/StoryProvider';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
 import { progressLabel } from './a11y';
 
@@ -43,12 +44,13 @@ export function ProgressBar({
   safeAreaTop,
 }: ProgressBarProps) {
   const { progress: tokens } = useStoryTheme();
+  const { config } = useStoryContext();
   return (
     <View
       pointerEvents="none"
       accessible
       accessibilityRole="progressbar"
-      accessibilityLabel={progressLabel(index + 1, count)}
+      accessibilityLabel={progressLabel(config.strings, index + 1, count)}
       style={[
         styles.row,
         {

@@ -269,7 +269,13 @@ export function StoryViewer({
           ? formatTime(created)
           : `${formatRelativeTime(created, Date.now())} ago`;
     AccessibilityInfo.announceForAccessibility(
-      userAnnouncement(user.name, nav.storyIndex + 1, user.stories.length, time)
+      userAnnouncement(
+        config.strings,
+        user.name,
+        nav.storyIndex + 1,
+        user.stories.length,
+        time
+      )
     );
     // Only when the user changes, not on every story.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -422,7 +428,6 @@ export function StoryViewer({
                     user={u}
                     story={s}
                     actions={config.actions}
-                    replyPlaceholder={config.replyPlaceholder}
                     pause={pauseApi}
                     resume={resumeApi}
                     onLike={onLike}
@@ -461,7 +466,6 @@ export function StoryViewer({
       insets.top,
       insets.bottom,
       config.actions,
-      config.replyPlaceholder,
       onLike,
       onSendMessage,
       onVoice,

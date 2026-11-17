@@ -1,3 +1,7 @@
+import { defaultStrings, type StoryStrings } from './strings';
+
+export type { StoryStrings } from './strings';
+
 export interface StoryActionsConfig {
   message: boolean;
   like: boolean;
@@ -15,10 +19,8 @@ export interface StoryConfig {
   formatTime?: (createdAt: number) => string;
   /** Which action-bar controls to show on others' stories. All default true. */
   actions: StoryActionsConfig;
-  /** Placeholder for the reply field on others' stories. */
-  replyPlaceholder: string;
-  /** Label for the Follow button in the viewers / likers list. */
-  followLabel: string;
+  /** User-facing copy. Override for i18n; see `defaultStrings`. */
+  strings: StoryStrings;
   motion: {
     tapCrossfadeMs: number;
     progressFillEasing: 'linear';
@@ -89,8 +91,7 @@ export const defaultConfig: StoryConfig = {
   autoAdvanceWithScreenReader: false,
   mediaErrorAdvanceMs: 4000,
   actions: { message: true, like: true, voice: true, share: true },
-  replyPlaceholder: 'Send message...',
-  followLabel: 'Follow',
+  strings: defaultStrings,
   motion: {
     tapCrossfadeMs: 90,
     progressFillEasing: 'linear',
