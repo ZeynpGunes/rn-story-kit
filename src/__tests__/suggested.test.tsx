@@ -79,6 +79,13 @@ describe('suggested bubbles (circle)', () => {
     expect(screen.getByTestId('bubble-ada')).toBeTruthy();
   });
 
+  it('uses the normal bubble label after following', async () => {
+    await render(<StoryList />, { wrapper: wrap([kate]) });
+    await fireEvent.press(screen.getByLabelText('Follow Kate'));
+    expect(screen.queryByLabelText(/suggested/)).toBeNull();
+    expect(screen.getByLabelText('Kate, new story, 3 stories')).toBeTruthy();
+  });
+
   it('never shows follow or dismiss for the owner', async () => {
     const owner: StoryUser = { ...kate, id: 'me', isOwner: true };
     await render(<StoryList />, { wrapper: wrap([owner]) });

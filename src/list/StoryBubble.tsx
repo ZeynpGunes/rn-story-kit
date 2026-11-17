@@ -97,7 +97,7 @@ export function StoryBubble({
           seen,
           user.stories.length
         )
-      : isSuggested
+      : showFollow
         ? suggestedBubbleLabel(config.strings, user.name, user.stories.length)
         : bubbleLabel(config.strings, user.name, seen, user.stories.length);
 
