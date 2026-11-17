@@ -5,10 +5,7 @@ import { useStoryTheme } from '../theme/StoryThemeProvider';
 import { useStoryContext } from '../provider/StoryProvider';
 import type { StoryItem, StoryPerson } from '../types';
 import { likeCountLabel, viewCountLabel } from './a11y';
-import {
-  EngagementModal,
-  type EngagementKind,
-} from './EngagementModal';
+import { EngagementModal, type EngagementKind } from './EngagementModal';
 import { HeartIcon } from './icons';
 
 export interface OwnerInsightsBarProps {

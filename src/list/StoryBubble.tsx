@@ -21,9 +21,7 @@ export function StoryBubble({
   const { name } = theme.list;
   const isOwner = user.isOwner === true;
   const isEmptyOwner =
-    isOwner &&
-    user.stories.length === 0 &&
-    config.ownerBubble.showAddWhenEmpty;
+    isOwner && user.stories.length === 0 && config.ownerBubble.showAddWhenEmpty;
   const label = isOwner ? config.strings.yourStory : user.name;
 
   const measure = useCallback(

@@ -67,7 +67,10 @@ function Probe() {
   return null;
 }
 
-const mount = async (props: Record<string, unknown> = {}, users = [owner, other]) =>
+const mount = async (
+  props: Record<string, unknown> = {},
+  users = [owner, other]
+) =>
   render(
     <StoryProvider users={users} scheme="light" {...props}>
       <Probe />

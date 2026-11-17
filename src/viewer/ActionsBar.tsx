@@ -1,10 +1,5 @@
 import { useState, type ReactNode } from 'react';
-import {
-  Pressable,
-  StyleSheet,
-  TextInput,
-  View,
-} from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import type { StoryActionsConfig } from '../config';
 import { useStoryContext } from '../provider/StoryProvider';
@@ -44,8 +39,7 @@ export function ActionsBar({
   const [focused, setFocused] = useState(false);
   const liked = story.liked === true;
 
-  const any =
-    actions.message || actions.like || actions.voice || actions.share;
+  const any = actions.message || actions.like || actions.voice || actions.share;
   if (!any) return null;
 
   const send = () => {

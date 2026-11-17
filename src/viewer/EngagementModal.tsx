@@ -9,7 +9,11 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { Gesture, GestureDetector, GestureHandlerRootView } from 'react-native-gesture-handler';
+import {
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from 'react-native-gesture-handler';
 import Animated, {
   useAnimatedStyle,
   useSharedValue,
@@ -53,11 +57,7 @@ export function EngagementModal({
   const f = m.follow;
   const open = kind !== null;
   const title =
-    kind === 'viewers'
-      ? s.viewersTitle
-      : kind === 'likers'
-        ? s.likesTitle
-        : '';
+    kind === 'viewers' ? s.viewersTitle : kind === 'likers' ? s.likesTitle : '';
   const empty =
     kind === 'viewers' ? s.noViewers : kind === 'likers' ? s.noLikes : '';
 
@@ -93,7 +93,10 @@ export function EngagementModal({
       backdrop.value = 1 - Math.min(1, y / 280);
     })
     .onEnd((e) => {
-      if (translateY.value > DISMISS_DISTANCE || e.velocityY > DISMISS_VELOCITY) {
+      if (
+        translateY.value > DISMISS_DISTANCE ||
+        e.velocityY > DISMISS_VELOCITY
+      ) {
         dismiss();
         return;
       }

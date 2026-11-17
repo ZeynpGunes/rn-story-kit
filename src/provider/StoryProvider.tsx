@@ -292,7 +292,7 @@ export function StoryProvider(props: StoryProviderProps) {
       goToUser: (userId) => commandsRef.current?.goToUser(userId),
       isOpen: session !== null,
     }),
-    [session, store, mergedConfig.sortUnseenFirst]
+    [session, store, mergedConfig.sortUnseenFirst, mergedConfig.ownerBubble]
   );
 
   const renderHeader = useCallback(
