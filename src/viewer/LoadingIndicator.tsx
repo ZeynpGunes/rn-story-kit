@@ -33,7 +33,16 @@ export function LoadingIndicator() {
     <Animated.View
       testID="story-loading"
       pointerEvents="none"
-      style={[styles.center, { width: size, height: size }, style]}
+      style={[
+        styles.center,
+        {
+          width: size,
+          height: size,
+          marginTop: -size / 2,
+          marginLeft: -size / 2,
+        },
+        style,
+      ]}
     >
       <Svg width={size} height={size}>
         <Circle
@@ -64,7 +73,5 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: '50%',
     left: '50%',
-    marginTop: -14,
-    marginLeft: -14,
   },
 });

@@ -1,6 +1,10 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { createGestureController } from 'react-native-gesture-handler/jest-utils';
-import { useSharedValue, type SharedValue } from 'react-native-reanimated';
+import {
+  getAnimatedStyle,
+  useSharedValue,
+  type SharedValue,
+} from 'react-native-reanimated';
 import { mediaGradient } from '../color/thumbhash';
 import { defaultConfig } from '../config';
 import { tapNext, tapPrev } from '../model/navigation';
@@ -67,6 +71,9 @@ const display = async () => {
   });
 };
 const fill = () => screen.getByTestId('story-progress-fill');
+const fillWidth = () =>
+  (getAnimatedStyle as unknown as (e: unknown) => { width: string })(fill())
+    .width;
 const ui = () => screen.getByTestId('story-ui');
 type Json = {
   type: string;
@@ -175,12 +182,14 @@ describe('UserPage gestures', () => {
       tap.activate({ x: WIDTH * 0.29 });
       tap.end();
     });
+    await advance(50); // scheduleOnRN hop
     expect(onNav).toHaveBeenLastCalledWith(tapPrev(state, users, {}));
     await act(async () => {
       tap.begin();
       tap.activate({ x: WIDTH * 0.31 });
       tap.end();
     });
+    await advance(50);
     expect(onNav).toHaveBeenLastCalledWith(tapNext(state, users));
   });
 
@@ -197,7 +206,10 @@ describe('UserPage gestures', () => {
     await advance(150);
     expect(ui()).toHaveAnimatedStyle({ opacity: 0 });
     expect(ui().props.pointerEvents).toBe('none');
+    const frozen = fillWidth();
+    expect(frozen).not.toBe('0%');
     await advance(10000);
+    expect(fillWidth()).toBe(frozen);
     expect(onNav).not.toHaveBeenCalled();
     await act(async () => {
       press.end();
@@ -266,6 +278,9 @@ describe('UserPage visuals', () => {
     await mount({ user });
     const image = screen.getByTestId('story-image');
     expect(image.props.placeholder).toEqual({ thumbhash: 'AQID' });
-    expect(image.props.transition).toBe(defaultConfig.motion.thumbCrossfadeMs);
+    expect(image.props.transition).toEqual({
+      duration: defaultConfig.motion.thumbCrossfadeMs,
+      timing: 'linear',
+    });
   });
 });

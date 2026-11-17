@@ -26,7 +26,7 @@ export function ImageMedia({
       testID="story-image"
       source={{ uri: story.uri }}
       placeholder={placeholder}
-      transition={transitionMs}
+      transition={{ duration: transitionMs, timing: 'linear' }}
       contentFit="contain"
       accessibilityLabel={story.alt}
       onDisplay={onDisplay}
