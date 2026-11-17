@@ -238,6 +238,19 @@ export function StoryProvider(props: StoryProviderProps) {
   const [dismissedIds, setDismissedIds] = useState<ReadonlySet<string>>(
     () => new Set()
   );
+  // Forget a user once it is gone or no longer suggested, so a later
+  // re-suggestion starts clean.
+  useEffect(() => {
+    const stillSuggested = new Set(
+      users.filter((u) => u.suggested === true).map((u) => u.id)
+    );
+    const prune = (prev: ReadonlySet<string>) => {
+      const next = new Set([...prev].filter((id) => stillSuggested.has(id)));
+      return next.size === prev.size ? prev : next;
+    };
+    setFollowedIds(prune);
+    setDismissedIds(prune);
+  }, [users]);
   const followSuggested = useCallback((user: StoryUser) => {
     setFollowedIds((prev) => new Set(prev).add(user.id));
     latest.current.onFollow?.({

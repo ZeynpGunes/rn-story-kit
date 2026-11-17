@@ -142,4 +142,22 @@ describe('dismissed and followed state follows the users prop', () => {
     await act(async () => setHostUsers([ada, { ...kate, suggested: false }]));
     expect(screen.getByTestId('bubble-kate')).toBeTruthy();
   });
+
+  it('shows a re-suggested user again after it was absent', async () => {
+    await render(<Host initial={[ada, kate]} />);
+    await fireEvent.press(screen.getByLabelText("Don't suggest Kate"));
+    await act(async () => setHostUsers([ada]));
+    await act(async () => setHostUsers([ada, kate]));
+    expect(screen.getByTestId('bubble-kate')).toBeTruthy();
+    expect(screen.getByLabelText('Follow Kate')).toBeTruthy();
+  });
+
+  it('shows the follow button again when a followed user is re-suggested', async () => {
+    await render(<Host initial={[ada, kate]} />);
+    await fireEvent.press(screen.getByLabelText('Follow Kate'));
+    expect(screen.queryByLabelText('Follow Kate')).toBeNull();
+    await act(async () => setHostUsers([ada, { ...kate, suggested: false }]));
+    await act(async () => setHostUsers([ada, kate]));
+    expect(screen.getByLabelText('Follow Kate')).toBeTruthy();
+  });
 });
