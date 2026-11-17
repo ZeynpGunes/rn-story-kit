@@ -128,6 +128,32 @@ describe('viewer shell', () => {
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
+  it('opens and closes from the rect radius', async () => {
+    const rect: Rect = { x: 0, y: 0, width: 100, height: 150, radius: 14 };
+    await mount({}, rect);
+    const radius = () =>
+      screen.getByTestId('story-viewer').props.jestAnimatedStyle.value
+        .borderRadius;
+    await act(async () => viewer.open('U1', rect));
+    await flush(1);
+    expect(radius()).toBeGreaterThan(10);
+    expect(radius()).toBeLessThan(20);
+    await flush(400);
+    await fireEvent.press(screen.getByLabelText('Close stories'));
+    await flush(250);
+    expect(radius()).toBeLessThan(14);
+  });
+
+  it('falls back to width / 2 when the rect has no radius', async () => {
+    await mount({}, bubbleRect);
+    await act(async () => viewer.open('U1', bubbleRect));
+    await flush(1);
+    const r =
+      screen.getByTestId('story-viewer').props.jestAnimatedStyle.value
+        .borderRadius;
+    expect(r).toBeGreaterThan(30);
+  });
+
   it('hides the source bubble while open and restores it after close', async () => {
     await mount({}, undefined, <StoryList />);
     const opacityOf = () =>
