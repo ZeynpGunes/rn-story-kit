@@ -28,8 +28,7 @@ export function preloadTargets(
 
 /** The single video worth holding a preloaded player for, if any. */
 export function nextVideoTarget(t: PreloadTargets): StoryItem | undefined {
-  const next = t.nextStory ?? t.nextUserEntry;
-  return next?.type === 'video' ? next : undefined;
+  return [t.nextStory, t.nextUserEntry].find((s) => s?.type === 'video');
 }
 
 /**

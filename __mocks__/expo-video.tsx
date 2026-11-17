@@ -38,8 +38,12 @@ function createPlayer(source: unknown): MockPlayer {
     loop: false,
     currentTime: 0,
     released: false,
-    play: jest.fn(),
-    pause: jest.fn(),
+    play: jest.fn(() => {
+      player.playing = true;
+    }),
+    pause: jest.fn(() => {
+      player.playing = false;
+    }),
     release: jest.fn(() => {
       player.released = true;
     }),
