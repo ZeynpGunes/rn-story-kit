@@ -76,3 +76,6 @@ android/generated
 nitrogen/
 
 .superpowers/
+
+# Internal agent planning (not part of the published library)
+docs/superpowers/
