@@ -15,7 +15,7 @@ import {
   shareActionLabel,
   voiceActionLabel,
 } from './a11y';
-import { HeartIcon } from './OwnerInsightsBar';
+import { HeartIcon } from './icons';
 
 export interface ActionsBarProps {
   user: StoryUser;

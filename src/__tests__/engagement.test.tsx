@@ -99,6 +99,14 @@ describe('engagement footer', () => {
     await fireEvent.press(screen.getByTestId('owner-likes'));
     expect(screen.getByText('Likes')).toBeTruthy();
     expect(screen.getByText('Ada')).toBeTruthy();
+    expect(screen.getByTestId('liked-a')).toBeTruthy();
+  });
+
+  it('viewers list does not show liked badges', async () => {
+    await mount();
+    await act(async () => viewer.open('me'));
+    await fireEvent.press(screen.getByTestId('owner-views'));
+    expect(screen.queryByTestId('liked-a')).toBeNull();
   });
 
   it('shows Follow only for people not already followed and fires onFollow', async () => {

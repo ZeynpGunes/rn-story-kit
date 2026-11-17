@@ -174,6 +174,8 @@ export interface StoryTheme {
         size: number;
         weight: string;
       };
+      likedIcon: number;
+      likedColor: string;
     };
   };
 }

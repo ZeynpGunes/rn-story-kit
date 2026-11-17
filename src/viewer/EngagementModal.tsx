@@ -22,6 +22,7 @@ import { scheduleOnRN } from 'react-native-worklets';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { StoryPerson } from '../types';
 import { closeEngagementLabel, followPersonLabel } from './a11y';
+import { HeartIcon } from './icons';
 
 export type EngagementKind = 'viewers' | 'likers';
 
@@ -192,59 +193,92 @@ export function EngagementModal({
                 bounces={false}
                 contentContainerStyle={{
                   paddingHorizontal: 16,
-                  paddingBottom: 8,
-                  gap: m.rowGap,
+                  paddingBottom: 12,
                 }}
-                renderItem={({ item }) => (
-                  <View style={[styles.row, { gap: m.rowGap }]}>
-                    <Image
-                      source={{ uri: item.avatar }}
-                      style={{
-                        width: m.avatar,
-                        height: m.avatar,
-                        borderRadius: m.avatar / 2,
-                        backgroundColor: 'rgba(255,255,255,0.08)',
-                      }}
-                    />
-                    <Text
-                      numberOfLines={1}
-                      style={{
-                        flex: 1,
-                        fontSize: m.nameSize,
-                        fontWeight: '500',
-                        color: m.nameColor,
-                      }}
-                    >
-                      {item.name}
-                    </Text>
-                    {item.following !== true && (
-                      <Pressable
-                        testID={`follow-${item.id}`}
-                        accessibilityRole="button"
-                        accessibilityLabel={followPersonLabel(item.name)}
-                        onPress={() => onFollow?.(item)}
+                renderItem={({ item }) => {
+                  const showFollow = item.following !== true;
+                  return (
+                    <View style={[styles.row, { minHeight: m.avatar + 16 }]}>
+                      <View
                         style={{
-                          height: f.height,
-                          paddingHorizontal: f.paddingH,
-                          borderRadius: f.radius,
-                          backgroundColor: f.bg,
-                          alignItems: 'center',
-                          justifyContent: 'center',
+                          width: m.avatar,
+                          height: m.avatar,
+                          marginRight: 12,
                         }}
                       >
-                        <Text
+                        <Image
+                          source={{ uri: item.avatar }}
                           style={{
-                            color: f.color,
-                            fontSize: f.size,
-                            fontWeight: f.weight as '600',
+                            width: m.avatar,
+                            height: m.avatar,
+                            borderRadius: m.avatar / 2,
+                            backgroundColor: 'rgba(255,255,255,0.08)',
                           }}
-                        >
-                          {followLabel}
-                        </Text>
-                      </Pressable>
-                    )}
-                  </View>
-                )}
+                        />
+                        {kind === 'likers' && (
+                          <View
+                            testID={`liked-${item.id}`}
+                            accessibilityLabel="Liked"
+                            style={[
+                              styles.likedBadge,
+                              {
+                                backgroundColor: m.bg,
+                                borderColor: m.bg,
+                              },
+                            ]}
+                          >
+                            <HeartIcon
+                              size={m.likedIcon}
+                              color={m.likedColor}
+                              filled
+                            />
+                          </View>
+                        )}
+                      </View>
+                      <Text
+                        numberOfLines={1}
+                        style={{
+                          flex: 1,
+                          marginRight: 12,
+                          fontSize: m.nameSize,
+                          fontWeight: '600',
+                          color: m.nameColor,
+                        }}
+                      >
+                        {item.name}
+                      </Text>
+                      <View style={styles.followSlot}>
+                        {showFollow ? (
+                          <Pressable
+                            testID={`follow-${item.id}`}
+                            accessibilityRole="button"
+                            accessibilityLabel={followPersonLabel(item.name)}
+                            onPress={() => onFollow?.(item)}
+                            style={{
+                              height: f.height,
+                              paddingHorizontal: f.paddingH,
+                              borderRadius: f.radius,
+                              backgroundColor: f.bg,
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              alignSelf: 'stretch',
+                            }}
+                          >
+                            <Text
+                              style={{
+                                color: f.color,
+                                fontSize: f.size,
+                                fontWeight: f.weight as '600',
+                              }}
+                            >
+                              {followLabel}
+                            </Text>
+                          </Pressable>
+                        ) : null}
+                      </View>
+                    </View>
+                  );
+                }}
               />
             )}
           </Animated.View>
@@ -287,5 +321,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  row: { flexDirection: 'row', alignItems: 'center' },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  likedBadge: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  followSlot: {
+    width: 96,
+    alignItems: 'stretch',
+    justifyContent: 'center',
+  },
 });

@@ -110,6 +110,8 @@ const base: StoryTheme = {
         size: 13,
         weight: '600',
       },
+      likedIcon: 11,
+      likedColor: '#FF3B5C',
     },
   },
 };
