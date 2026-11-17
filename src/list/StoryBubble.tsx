@@ -73,7 +73,8 @@ export function StoryBubble({
   );
   const cardAddStyle: ViewStyle = {
     bottom: cardInset + suggested.follow.inset,
-    alignSelf: 'center',
+    left: (cardOuterW - suggested.follow.size) / 2,
+    right: undefined,
   };
   const isOwner = user.isOwner === true;
   const isEmptyOwner =

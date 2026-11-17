@@ -180,7 +180,13 @@ describe('StoryList card variant', () => {
     await render(<StoryList variant="card" />, {
       wrapper: withUsers([owner], { onAddStory }),
     });
-    expect(screen.getByTestId('owner-add-badge')).toBeTruthy();
+    const badge = screen.getByTestId('owner-add-badge');
+    const st = Object.assign({}, ...[badge.props.style].flat(2));
+    // Yoga ignores alignSelf on an absolute child once `right` is set.
+    expect(st.right).toBeUndefined();
+    expect(st.left).toBe((111 - 32) / 2);
+    expect(st.width).toBe(32);
+    expect(st.bottom).toBe(5.5 + 6);
     expect(screen.queryByTestId('ring-active-me')).toBeNull();
     expect(screen.queryByLabelText(/Follow/)).toBeNull();
     await fireEvent.press(screen.getByTestId('bubble-me'));
