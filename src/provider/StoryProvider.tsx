@@ -65,13 +65,24 @@ export interface StoryViewerApi {
   isOpen: boolean;
 }
 
+export interface ViewerCommands {
+  next(): void;
+  prev(): void;
+  pause(): void;
+  resume(): void;
+  goToUser(userId: string): void;
+}
+
 export interface StoryContextValue {
   users: StoryUser[];
   config: StoryConfig;
   scheme: ColorScheme;
   store: SeenStore;
   registry: RectRegistry;
-  /** Open viewer session; users is the ordered snapshot taken at open. */
+  /**
+   * Open viewer session. users keeps the order fixed at open; later `users`
+   * prop updates only remove or append entries.
+   */
   opened: {
     userId: string;
     rect: Rect | null;
@@ -86,8 +97,15 @@ export interface StoryContextValue {
   onSwipeUp(story: StoryItem, user: StoryUser): void;
   /** Internal: the mounted viewer registers its close routine here. */
   closerRef: { current: (() => void) | null };
+  /** Internal: the mounted viewer registers its imperative commands here. */
+  commandsRef: { current: ViewerCommands | null };
   /** Internal: stable; undefined when the app gave no renderHeader. */
   renderHeader(p: StorySlotProps): ReactNode | undefined;
+  /** Internal: stable; render the app's footer / overlay slots. */
+  renderFooter(p: StorySlotProps): ReactNode;
+  renderOverlay(p: StorySlotProps): ReactNode;
+  hasFooter: boolean;
+  hasOverlay: boolean;
   /** Internal: whether the app gave a renderHeader. */
   hasCustomHeader: boolean;
   /** Internal: called by the viewer after its close animation ended. */
@@ -120,8 +138,6 @@ export function useSeenVersion(): number {
   return useSyncExternalStore(subscribe, getVersion, getVersion);
 }
 
-const noop = () => {};
-
 export function StoryProvider(props: StoryProviderProps) {
   const { users, theme, config, seenStorage, initialSeen, children } = props;
   const system = useColorScheme();
@@ -151,7 +167,11 @@ export function StoryProvider(props: StoryProviderProps) {
     store.hydrate();
   }, [store]);
 
-  const [opened, setOpened] = useState<StoryContextValue['opened']>(null);
+  const [session, setSession] = useState<{
+    userId: string;
+    rect: Rect | null;
+    order: string[];
+  } | null>(null);
   const [activeUserId, setActiveUserId] = useState<string | null>(null);
   const onSwipeUp = useCallback(
     (story: StoryItem, user: StoryUser) =>
@@ -164,13 +184,33 @@ export function StoryProvider(props: StoryProviderProps) {
     [config]
   );
 
-  const openedRef = useRef(opened);
-  openedRef.current = opened;
+  // Open order, updated with removals and appends; never re-sorted.
+  const orderRef = useRef<string[]>([]);
+  const opened = useMemo<StoryContextValue['opened']>(() => {
+    if (!session) return null;
+    const visible = visibleUsers(users);
+    const byId = new Map(visible.map((u) => [u.id, u]));
+    const kept = orderRef.current.filter((id) => byId.has(id));
+    const added = visible.filter((u) => !kept.includes(u.id)).map((u) => u.id);
+    orderRef.current = [...kept, ...added];
+    const live = orderRef.current.map((id) => byId.get(id)!);
+    return {
+      userId: session.userId,
+      rect: session.rect,
+      users: live,
+      userIndex: live.findIndex((u) => u.id === session.userId),
+    };
+  }, [session, users]);
+
+  const openedRef = useRef(session);
   const closerRef = useRef<(() => void) | null>(null);
+  const commandsRef = useRef<ViewerCommands | null>(null);
 
   const api = useMemo<StoryViewerApi>(
     () => ({
       open: (userId, rect) => {
+        // openedRef flips synchronously so a second open() in the same tick
+        // cannot slip through before React re-renders.
         if (openedRef.current) return;
         const ordered = sortUsers(
           visibleUsers(latest.current.users),
@@ -179,18 +219,25 @@ export function StoryProvider(props: StoryProviderProps) {
         );
         const userIndex = ordered.findIndex((u) => u.id === userId);
         if (userIndex === -1) return;
-        setOpened({ userId, rect: rect ?? null, users: ordered, userIndex });
+        const next = {
+          userId,
+          rect: rect ?? null,
+          order: ordered.map((u) => u.id),
+        };
+        orderRef.current = next.order;
+        openedRef.current = next;
+        setSession(next);
         latest.current.onOpen?.(userId);
       },
       close: () => closerRef.current?.(),
-      next: noop,
-      prev: noop,
-      pause: noop,
-      resume: noop,
-      goToUser: noop,
-      isOpen: opened !== null,
+      next: () => commandsRef.current?.next(),
+      prev: () => commandsRef.current?.prev(),
+      pause: () => commandsRef.current?.pause(),
+      resume: () => commandsRef.current?.resume(),
+      goToUser: (userId) => commandsRef.current?.goToUser(userId),
+      isOpen: session !== null,
     }),
-    [opened, store, mergedConfig.sortUnseenFirst]
+    [session, store, mergedConfig.sortUnseenFirst]
   );
 
   const renderHeader = useCallback(
@@ -198,10 +245,22 @@ export function StoryProvider(props: StoryProviderProps) {
     []
   );
 
+  const renderFooter = useCallback(
+    (p: StorySlotProps) => latest.current.renderFooter?.(p),
+    []
+  );
+  const renderOverlay = useCallback(
+    (p: StorySlotProps) => latest.current.renderOverlay?.(p),
+    []
+  );
+
   const hasCustomHeader = props.renderHeader !== undefined;
+  const hasFooter = props.renderFooter !== undefined;
+  const hasOverlay = props.renderOverlay !== undefined;
 
   const onViewerClosed = useCallback(() => {
-    setOpened(null);
+    openedRef.current = null;
+    setSession(null);
     setActiveUserId(null);
     latest.current.onClose?.();
   }, []);
@@ -218,7 +277,12 @@ export function StoryProvider(props: StoryProviderProps) {
       onActiveUserChange: setActiveUserId,
       onSwipeUp,
       closerRef,
+      commandsRef,
       renderHeader,
+      renderFooter,
+      renderOverlay,
+      hasFooter,
+      hasOverlay,
       hasCustomHeader,
       onViewerClosed,
       api,
@@ -234,6 +298,10 @@ export function StoryProvider(props: StoryProviderProps) {
       activeUserId,
       onSwipeUp,
       renderHeader,
+      renderFooter,
+      renderOverlay,
+      hasFooter,
+      hasOverlay,
       hasCustomHeader,
       onViewerClosed,
       api,

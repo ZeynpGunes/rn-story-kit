@@ -8,5 +8,11 @@ export const prevStoryAction = 'Previous story';
 export const progressLabel = (index: number, count: number) =>
   `Story ${index} of ${count}`;
 
-export const userAnnouncement = (name: string, count: number, time: string) =>
-  `${name}, story 1 of ${count}, ${time} ago`;
+export const userAnnouncement = (
+  name: string,
+  count: number,
+  time: string | null
+) =>
+  time === null
+    ? `${name}, story 1 of ${count}`
+    : `${name}, story 1 of ${count}, ${time} ago`;

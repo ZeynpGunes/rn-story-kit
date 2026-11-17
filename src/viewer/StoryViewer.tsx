@@ -6,10 +6,17 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { StyleSheet, useWindowDimensions } from 'react-native';
+import {
+  AccessibilityInfo,
+  AppState,
+  StyleSheet,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
+  useDerivedValue,
   useReducedMotion,
   useSharedValue,
   withTiming,
@@ -22,7 +29,12 @@ import {
   lerpRect,
   rubberBand,
 } from '../model/gestureMath';
-import { enterUser, type NavResult } from '../model/navigation';
+import {
+  enterUser,
+  reconcileNavState,
+  type NavResult,
+} from '../model/navigation';
+import { formatRelativeTime } from '../model/time';
 import { measureWithTimeout } from '../provider/rectRegistry';
 import {
   useStoryContext,
@@ -33,8 +45,9 @@ import type { Rect, StoryItem, StoryUser } from '../types';
 import { Header } from './Header';
 import { nextVideoTarget, preloadTargets, usePreload } from './media/preload';
 import { VideoSlotsProvider } from './media/videoSlots';
-import { Scrim } from './Scrim';
-import { UserPager } from './UserPager';
+import { userAnnouncement } from './a11y';
+import { BottomScrim, Scrim } from './Scrim';
+import { UserPager, type PagerCommands } from './UserPager';
 import { ViewerContext } from './viewerContext';
 
 export interface StoryViewerProps {
@@ -54,8 +67,13 @@ export function StoryViewer({
     registry,
     opened,
     closerRef,
+    commandsRef,
     renderHeader,
+    renderFooter,
+    renderOverlay,
     hasCustomHeader,
+    hasFooter,
+    hasOverlay,
     onActiveUserChange,
   } = useStoryContext();
   const theme = useStoryTheme();
@@ -64,12 +82,30 @@ export function StoryViewer({
   const reduced = useReducedMotion();
   const { motion } = config;
 
-  const users = opened?.users ?? [];
+  const liveUsers = opened?.users ?? [];
+  const [users, setUsers] = useState(liveUsers);
   const [nav, setNav] = useState(() => ({
-    ...enterUser(initialUserIndex, users, store),
+    ...enterUser(initialUserIndex, liveUsers, store),
     // Bumped by "restart" so the first story's timer starts over.
     restarts: 0,
   }));
+  const [activeGone, setActiveGone] = useState(false);
+  // Follow the users prop: keep the viewed story by id. When its user is
+  // gone the last users stay on screen while the viewer closes.
+  if (liveUsers !== users && !activeGone) {
+    const cur = users[nav.userIndex];
+    const st = cur?.stories[nav.storyIndex];
+    const r =
+      cur &&
+      st &&
+      reconcileNavState({ userId: cur.id, storyId: st.id }, liveUsers);
+    if (r) {
+      setUsers(liveUsers);
+      setNav((prev) => ({ ...prev, ...r }));
+    } else {
+      setActiveGone(true);
+    }
+  }
   const user = users[nav.userIndex];
   const story = user?.stories[nav.storyIndex];
   usePreload(users, nav);
@@ -139,6 +175,10 @@ export function StoryViewer({
     finish,
   ]);
 
+  useEffect(() => {
+    if (activeGone) requestClose();
+  }, [activeGone, requestClose]);
+
   const onNav = useCallback(
     (r: NavResult) => {
       if (r.kind === 'close') {
@@ -156,6 +196,75 @@ export function StoryViewer({
     },
     [requestClose, userId, nav.storyIndex]
   );
+
+  // Parent hold for every page's timer: set from JS, read on the UI thread.
+  const appBackground = useSharedValue(false);
+  const screenReaderHold = useSharedValue(false);
+  const apiPaused = useSharedValue(false);
+  const held = useDerivedValue(
+    () => appBackground.value || screenReaderHold.value || apiPaused.value
+  );
+  const holdForReader = !config.autoAdvanceWithScreenReader;
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (s) => {
+      appBackground.value = s !== 'active';
+    });
+    return () => sub.remove();
+  }, [appBackground]);
+  useEffect(() => {
+    let live = true;
+    const apply = (on: boolean) => {
+      screenReaderHold.value = on && holdForReader;
+    };
+    AccessibilityInfo.isScreenReaderEnabled().then((on) => live && apply(on));
+    const sub = AccessibilityInfo.addEventListener(
+      'screenReaderChanged',
+      apply
+    );
+    return () => {
+      live = false;
+      sub.remove();
+    };
+  }, [screenReaderHold, holdForReader]);
+
+  const pagerCommands = useRef<PagerCommands | null>(null);
+  useEffect(() => {
+    commandsRef.current = {
+      next: () => pagerCommands.current?.next(),
+      prev: () => pagerCommands.current?.prev(),
+      goToUser: (id) => pagerCommands.current?.goToUser(id),
+      pause: () => {
+        apiPaused.value = true;
+      },
+      resume: () => {
+        apiPaused.value = false;
+      },
+    };
+    return () => {
+      commandsRef.current = null;
+    };
+  }, [commandsRef, apiPaused]);
+  const toggleMagicTap = useCallback(() => {
+    apiPaused.value = !apiPaused.value;
+    return true;
+  }, [apiPaused]);
+
+  const formatTime = config.formatTime;
+  useEffect(() => {
+    if (!user || !story) return;
+    const created = story.createdAt;
+    const time =
+      created === undefined
+        ? null
+        : formatTime
+          ? formatTime(created)
+          : formatRelativeTime(created, Date.now());
+    AccessibilityInfo.announceForAccessibility(
+      userAnnouncement(user.name, user.stories.length, time)
+    );
+    // Only when the user changes, not on every story.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   const onMediaFirstFrame = useCallback(
     (item: StoryItem) => {
@@ -257,35 +366,73 @@ export function StoryViewer({
     [requestClose, isClosing, isTransitioning]
   );
 
-  // A custom header renders for the active page only, behind a component
-  // boundary so its hooks stay isolated; neighbours then show no header.
+  // Custom slots render for the active page only, each behind a component
+  // boundary so their hooks stay isolated; neighbours show no custom slot.
   const renderChrome = useCallback(
-    (u: StoryUser, s: StoryItem, storyIndex: number, active: boolean) => (
-      <>
-        <Scrim safeAreaTop={insets.top} />
-        {!hasCustomHeader ? (
-          <Header
-            user={u}
-            story={s}
-            safeAreaTop={insets.top}
-            onClose={requestClose}
-          />
-        ) : active ? (
-          <SlotRenderer
-            render={renderHeader}
-            props={{
-              user: u,
-              story: s,
-              storyIndex,
-              close: requestClose,
-              pause: noop,
-              resume: noop,
-            }}
-          />
-        ) : null}
-      </>
-    ),
-    [hasCustomHeader, renderHeader, requestClose, insets.top]
+    (u: StoryUser, s: StoryItem, storyIndex: number, active: boolean) => {
+      const slotProps: StorySlotProps = {
+        user: u,
+        story: s,
+        storyIndex,
+        close: requestClose,
+        pause: noop,
+        resume: noop,
+      };
+      const defaultHeader = (
+        <Header
+          user={u}
+          story={s}
+          safeAreaTop={insets.top}
+          onClose={requestClose}
+        />
+      );
+      return (
+        <>
+          {active && hasOverlay && (
+            <View
+              testID="story-overlay"
+              pointerEvents="box-none"
+              style={StyleSheet.absoluteFill}
+            >
+              <SlotRenderer render={renderOverlay} props={slotProps} />
+            </View>
+          )}
+          <Scrim safeAreaTop={insets.top} />
+          {active && hasFooter && (
+            <>
+              <BottomScrim />
+              <View
+                testID="story-footer"
+                pointerEvents="box-none"
+                style={[styles.footer, { paddingBottom: insets.bottom }]}
+              >
+                <SlotRenderer render={renderFooter} props={slotProps} />
+              </View>
+            </>
+          )}
+          {!hasCustomHeader ? (
+            defaultHeader
+          ) : active ? (
+            <SlotRenderer
+              render={renderHeader}
+              props={slotProps}
+              fallback={defaultHeader}
+            />
+          ) : null}
+        </>
+      );
+    },
+    [
+      hasCustomHeader,
+      hasFooter,
+      hasOverlay,
+      renderHeader,
+      renderFooter,
+      renderOverlay,
+      requestClose,
+      insets.top,
+      insets.bottom,
+    ]
   );
 
   if (!user || !story) return null;
@@ -305,6 +452,7 @@ export function StoryViewer({
       <Animated.View
         testID="story-viewer"
         accessibilityViewIsModal
+        onMagicTap={toggleMagicTap}
         style={[
           styles.frame,
           { backgroundColor: theme.viewer.bgFallback },
@@ -317,6 +465,8 @@ export function StoryViewer({
               users={users}
               nav={nav}
               lastViewed={lastViewed.current}
+              externalHeld={held}
+              commandsRef={pagerCommands}
               dragY={dragY}
               onNav={onNav}
               onMediaFirstFrame={onMediaFirstFrame}
@@ -331,17 +481,22 @@ export function StoryViewer({
 
 const noop = () => {};
 
+/** Renders a slot; `undefined` (not null) falls back when one is given. */
 function SlotRenderer({
   render,
   props,
+  fallback,
 }: {
   render(p: StorySlotProps): ReactNode;
   props: StorySlotProps;
+  fallback?: ReactNode;
 }) {
-  return <>{render(props)}</>;
+  const out = render(props);
+  return <>{out === undefined ? fallback : out}</>;
 }
 
 const styles = StyleSheet.create({
   frame: { position: 'absolute', overflow: 'hidden' },
   fill: { flex: 1 },
+  footer: { position: 'absolute', left: 0, right: 0, bottom: 0 },
 });
