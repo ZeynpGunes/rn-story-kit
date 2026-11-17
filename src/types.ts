@@ -3,6 +3,13 @@ export type PaletteName =
 
 export type MediaType = 'image' | 'video';
 
+/** A person shown in the viewers / likers modal. */
+export interface StoryPerson {
+  id: string;
+  name: string;
+  avatar: string;
+}
+
 export interface StoryItem {
   id: string;
   type: MediaType;
@@ -15,6 +22,16 @@ export interface StoryItem {
   seen?: boolean;
   createdAt?: number;
   data?: unknown;
+  /** How many people viewed this story (owner insights). */
+  viewCount?: number;
+  /** How many people liked this story (owner insights). */
+  likeCount?: number;
+  /** People who viewed this story; shown when the view count is tapped. */
+  viewers?: StoryPerson[];
+  /** People who liked this story; shown when the like count is tapped. */
+  likers?: StoryPerson[];
+  /** Whether the current viewer has liked this story. */
+  liked?: boolean;
 }
 
 export interface StoryUser {
@@ -24,6 +41,8 @@ export interface StoryUser {
   stories: StoryItem[];
   ringVariant?: PaletteName;
   ringColors?: string[];
+  /** Marks the signed-in user's row; shows view/like insights instead of the action bar. */
+  isOwner?: boolean;
 }
 
 export interface Rect {
@@ -111,4 +130,39 @@ export interface StoryTheme {
     };
   };
   avatarPlaceholder: string;
+  actions: {
+    sideInset: number;
+    gap: number;
+    input: {
+      height: number;
+      radius: number;
+      paddingH: number;
+      bg: string;
+      border: string;
+      color: string;
+      placeholder: string;
+      size: number;
+    };
+    icon: { size: number; color: string; hit: number; liked: string };
+    count: {
+      size: number;
+      weight: string;
+      lineHeight: number;
+      color: string;
+      gap: number;
+      icon: number;
+    };
+    modal: {
+      bg: string;
+      handle: string;
+      titleSize: number;
+      titleColor: string;
+      nameSize: number;
+      nameColor: string;
+      emptyColor: string;
+      avatar: number;
+      rowGap: number;
+      closeColor: string;
+    };
+  };
 }

@@ -24,6 +24,7 @@ import type {
   StoryUser,
 } from '../types';
 import { sortUsers, visibleUsers } from '../seen/selectors';
+import { shouldShowDefaultFooter } from '../viewer/DefaultFooter';
 import { StoryViewer } from '../viewer/StoryViewer';
 import { createRectRegistry, type RectRegistry } from './rectRegistry';
 
@@ -48,6 +49,10 @@ export interface StoryProviderProps {
   onClose?(): void;
   onSwipeUp?(story: StoryItem, user: StoryUser): void;
   onEndReached?(): void;
+  onLike?(story: StoryItem, user: StoryUser, nextLiked: boolean): void;
+  onSendMessage?(story: StoryItem, user: StoryUser, text: string): void;
+  onVoice?(story: StoryItem, user: StoryUser): void;
+  onShare?(story: StoryItem, user: StoryUser): void;
   renderHeader?(p: StorySlotProps): ReactNode;
   renderFooter?(p: StorySlotProps): ReactNode;
   renderOverlay?(p: StorySlotProps): ReactNode;
@@ -95,6 +100,11 @@ export interface StoryContextValue {
   onActiveUserChange(userId: string): void;
   /** Internal: stable; always calls the latest onSwipeUp prop. */
   onSwipeUp(story: StoryItem, user: StoryUser): void;
+  /** Internal: stable engagement callbacks for the default footer. */
+  onLike(story: StoryItem, user: StoryUser, nextLiked: boolean): void;
+  onSendMessage(story: StoryItem, user: StoryUser, text: string): void;
+  onVoice(story: StoryItem, user: StoryUser): void;
+  onShare(story: StoryItem, user: StoryUser): void;
   /** Internal: the mounted viewer registers its close routine here. */
   closerRef: { current: (() => void) | null };
   /** Internal: the mounted viewer registers its imperative commands here. */
@@ -108,6 +118,8 @@ export interface StoryContextValue {
   hasOverlay: boolean;
   /** Internal: whether the app gave a renderHeader. */
   hasCustomHeader: boolean;
+  /** Internal: whether the app gave a renderFooter (replaces the default). */
+  hasCustomFooter: boolean;
   /** Internal: called by the viewer after its close animation ended. */
   onViewerClosed(): void;
   api: StoryViewerApi;
@@ -176,6 +188,26 @@ export function StoryProvider(props: StoryProviderProps) {
   const onSwipeUp = useCallback(
     (story: StoryItem, user: StoryUser) =>
       latest.current.onSwipeUp?.(story, user),
+    []
+  );
+  const onLike = useCallback(
+    (story: StoryItem, user: StoryUser, nextLiked: boolean) =>
+      latest.current.onLike?.(story, user, nextLiked),
+    []
+  );
+  const onSendMessage = useCallback(
+    (story: StoryItem, user: StoryUser, text: string) =>
+      latest.current.onSendMessage?.(story, user, text),
+    []
+  );
+  const onVoice = useCallback(
+    (story: StoryItem, user: StoryUser) =>
+      latest.current.onVoice?.(story, user),
+    []
+  );
+  const onShare = useCallback(
+    (story: StoryItem, user: StoryUser) =>
+      latest.current.onShare?.(story, user),
     []
   );
 
@@ -255,7 +287,9 @@ export function StoryProvider(props: StoryProviderProps) {
   );
 
   const hasCustomHeader = props.renderHeader !== undefined;
-  const hasFooter = props.renderFooter !== undefined;
+  const hasCustomFooter = props.renderFooter !== undefined;
+  const hasFooter =
+    hasCustomFooter || shouldShowDefaultFooter(users, mergedConfig.actions);
   const hasOverlay = props.renderOverlay !== undefined;
 
   const onViewerClosed = useCallback(() => {
@@ -276,6 +310,10 @@ export function StoryProvider(props: StoryProviderProps) {
       hiddenUserId: opened ? (activeUserId ?? opened.userId) : null,
       onActiveUserChange: setActiveUserId,
       onSwipeUp,
+      onLike,
+      onSendMessage,
+      onVoice,
+      onShare,
       closerRef,
       commandsRef,
       renderHeader,
@@ -284,6 +322,7 @@ export function StoryProvider(props: StoryProviderProps) {
       hasFooter,
       hasOverlay,
       hasCustomHeader,
+      hasCustomFooter,
       onViewerClosed,
       api,
       onEndReached,
@@ -297,12 +336,17 @@ export function StoryProvider(props: StoryProviderProps) {
       opened,
       activeUserId,
       onSwipeUp,
+      onLike,
+      onSendMessage,
+      onVoice,
+      onShare,
       renderHeader,
       renderFooter,
       renderOverlay,
       hasFooter,
       hasOverlay,
       hasCustomHeader,
+      hasCustomFooter,
       onViewerClosed,
       api,
       onEndReached,

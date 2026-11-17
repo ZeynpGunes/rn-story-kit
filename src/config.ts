@@ -1,3 +1,10 @@
+export interface StoryActionsConfig {
+  message: boolean;
+  like: boolean;
+  voice: boolean;
+  share: boolean;
+}
+
 export interface StoryConfig {
   imageDurationMs: number;
   tapZoneRatio: number;
@@ -6,6 +13,10 @@ export interface StoryConfig {
   mediaErrorAdvanceMs: number;
   /** Overrides the header time label; default is formatRelativeTime. */
   formatTime?: (createdAt: number) => string;
+  /** Which action-bar controls to show on others' stories. All default true. */
+  actions: StoryActionsConfig;
+  /** Placeholder for the reply field on others' stories. */
+  replyPlaceholder: string;
   motion: {
     tapCrossfadeMs: number;
     progressFillEasing: 'linear';
@@ -75,6 +86,8 @@ export const defaultConfig: StoryConfig = {
   sortUnseenFirst: true,
   autoAdvanceWithScreenReader: false,
   mediaErrorAdvanceMs: 4000,
+  actions: { message: true, like: true, voice: true, share: true },
+  replyPlaceholder: 'Send message...',
   motion: {
     tapCrossfadeMs: 90,
     progressFillEasing: 'linear',
