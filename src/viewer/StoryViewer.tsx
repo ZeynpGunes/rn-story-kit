@@ -25,6 +25,8 @@ import { useStoryContext } from '../provider/StoryProvider';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { Rect, StoryItem } from '../types';
 import { Header } from './Header';
+import { nextVideoTarget, preloadTargets, usePreload } from './media/preload';
+import { VideoSlotsProvider } from './media/videoSlots';
 import { Scrim } from './Scrim';
 import { UserPage } from './UserPage';
 
@@ -69,6 +71,7 @@ export function StoryViewer({
   }));
   const user = users[nav.userIndex];
   const story = user?.stories[nav.storyIndex];
+  usePreload(users, nav);
   const held = useSharedValue(false);
   const lastViewed = useRef<Record<string, number>>({});
 
@@ -220,6 +223,7 @@ export function StoryViewer({
     resume: () => {},
   };
   const customHeader = renderHeader(slot);
+  const nextVideo = nextVideoTarget(preloadTargets(users, nav, store));
 
   return (
     <ViewerContext.Provider value={controls}>
@@ -233,29 +237,31 @@ export function StoryViewer({
         ]}
       >
         <Animated.View style={[styles.fill, contentStyle]}>
-          <UserPage
-            key={`${user.id}:${nav.restarts}`}
-            user={user}
-            storyIndex={nav.storyIndex}
-            users={users}
-            lastViewed={lastViewed.current}
-            isActive
-            held={held}
-            onNav={onNav}
-            onMediaFirstFrame={onMediaFirstFrame}
-          >
-            <Scrim safeAreaTop={insets.top} />
-            {customHeader !== undefined ? (
-              customHeader
-            ) : (
-              <Header
-                user={user}
-                story={story}
-                safeAreaTop={insets.top}
-                onClose={requestClose}
-              />
-            )}
-          </UserPage>
+          <VideoSlotsProvider active={story} next={nextVideo}>
+            <UserPage
+              key={`${user.id}:${nav.restarts}`}
+              user={user}
+              storyIndex={nav.storyIndex}
+              users={users}
+              lastViewed={lastViewed.current}
+              isActive
+              held={held}
+              onNav={onNav}
+              onMediaFirstFrame={onMediaFirstFrame}
+            >
+              <Scrim safeAreaTop={insets.top} />
+              {customHeader !== undefined ? (
+                customHeader
+              ) : (
+                <Header
+                  user={user}
+                  story={story}
+                  safeAreaTop={insets.top}
+                  onClose={requestClose}
+                />
+              )}
+            </UserPage>
+          </VideoSlotsProvider>
         </Animated.View>
       </Animated.View>
     </ViewerContext.Provider>

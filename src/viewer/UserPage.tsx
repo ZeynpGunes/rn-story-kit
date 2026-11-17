@@ -16,6 +16,7 @@ import Animated, {
   cancelAnimation,
   Easing,
   useAnimatedStyle,
+  useAnimatedReaction,
   useDerivedValue,
   useReducedMotion,
   useSharedValue,
@@ -31,6 +32,7 @@ import type { StoryItem, StoryUser } from '../types';
 import { LoadingIndicator } from './LoadingIndicator';
 import { ImageMedia } from './media/ImageMedia';
 import { MediaBackground } from './media/MediaBackground';
+import { VideoMedia, VideoThumb } from './media/VideoMedia';
 import { ProgressBar } from './ProgressBar';
 import { useStoryTimer } from './useStoryTimer';
 
@@ -82,9 +84,20 @@ function StoryPage({
   // UI-thread mirrors so pausing never waits for a React render.
   const pressed = useSharedValue(false);
   const mediaBlocked = useSharedValue(true);
-  const timerHeld = useDerivedValue(
-    () => held.value || pressed.value || mediaBlocked.value
+  const buffering = useSharedValue(false);
+  // Playback hold; the timer additionally waits for media (mediaBlocked).
+  const playHeld = useDerivedValue(
+    () => held.value || pressed.value || buffering.value
   );
+  const timerHeld = useDerivedValue(() => playHeld.value || mediaBlocked.value);
+  const [playbackHeld, setPlaybackHeld] = useState(false);
+  useAnimatedReaction(
+    () => playHeld.value,
+    (h, prev) => {
+      if (h !== prev) scheduleOnRN(setPlaybackHeld, h);
+    }
+  );
+  const [videoMs, setVideoMs] = useState<number | null>(null);
 
   const navState = {
     userIndex: users.findIndex((u) => u.id === user.id),
@@ -99,11 +112,22 @@ function StoryPage({
   }, []);
 
   const { progress } = useStoryTimer({
-    durationMs: story.durationMs ?? config.imageDurationMs,
+    durationMs:
+      story.durationMs ??
+      (story.type === 'video' ? videoMs : null) ??
+      config.imageDurationMs,
     active: isActive,
     held: timerHeld,
     onComplete: goNext,
   });
+
+  // A video needs its duration and a rendered first frame before it runs.
+  const durationKnown = story.durationMs !== undefined || videoMs !== null;
+  useEffect(() => {
+    if (story.type === 'video' && ready && durationKnown && !failed) {
+      mediaBlocked.value = false;
+    }
+  }, [story.type, ready, durationKnown, failed, mediaBlocked]);
 
   // Seen rule: the active story's first frame; previews never mark.
   const marked = useRef(false);
@@ -201,6 +225,25 @@ function StoryPage({
               }}
             />
           )}
+          {story.type === 'video' &&
+            !failed &&
+            (isActive ? (
+              <VideoMedia
+                story={story}
+                playing={!playbackHeld}
+                onFirstFrame={() => setReady(true)}
+                onBuffering={(b) => {
+                  buffering.value = b;
+                }}
+                onDuration={(ms) => setVideoMs(ms)}
+                onError={() => {
+                  setFailed(true);
+                  mediaBlocked.value = true;
+                }}
+              />
+            ) : (
+              <VideoThumb story={story} />
+            ))}
           {showLoading && <LoadingIndicator />}
         </Animated.View>
       </GestureDetector>
