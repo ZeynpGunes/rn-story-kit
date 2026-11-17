@@ -2,7 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react-native';
 import { act } from '@testing-library/react-native';
 import { useState, type ReactNode } from 'react';
 import { StoryList } from '../list/StoryList';
-import { StoryProvider } from '../provider/StoryProvider';
+import { StoryProvider, useStoryContext } from '../provider/StoryProvider';
 import type { StoryUser } from '../types';
 
 const story = (id: string) => ({
@@ -159,5 +159,36 @@ describe('dismissed and followed state follows the users prop', () => {
     await act(async () => setHostUsers([ada, { ...kate, suggested: false }]));
     await act(async () => setHostUsers([ada, kate]));
     expect(screen.getByLabelText('Follow Kate')).toBeTruthy();
+  });
+});
+
+describe('viewer playback skips dismissed users', () => {
+  const bob: StoryUser = { ...ada, id: 'bob', name: 'Bob' };
+  const run = async (open: string) => {
+    let ctx!: ReturnType<typeof useStoryContext>;
+    function Probe() {
+      ctx = useStoryContext();
+      return null;
+    }
+    await render(
+      <>
+        <StoryList />
+        <Probe />
+      </>,
+      { wrapper: wrap([ada, kate, bob]) }
+    );
+    await fireEvent.press(screen.getByLabelText("Don't suggest Kate"));
+    await act(async () => ctx.api.open(open));
+    return ctx;
+  };
+
+  it('opens without the dismissed user in the swipe order', async () => {
+    const ctx = await run('ada');
+    expect(ctx.opened?.users.map((u) => u.id)).toEqual(['ada', 'bob']);
+  });
+
+  it('refuses to open a dismissed user directly', async () => {
+    const ctx = await run('kate');
+    expect(ctx.opened).toBeNull();
   });
 });

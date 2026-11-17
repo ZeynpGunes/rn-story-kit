@@ -24,7 +24,7 @@ import type {
   StoryTheme,
   StoryUser,
 } from '../types';
-import { playbackUsers, sortUsers } from '../seen/selectors';
+import { playbackUsers, sortUsers, withoutDismissed } from '../seen/selectors';
 import { shouldShowDefaultFooter } from '../viewer/DefaultFooter';
 import { StoryViewer } from '../viewer/StoryViewer';
 import { createRectRegistry, type RectRegistry } from './rectRegistry';
@@ -251,6 +251,8 @@ export function StoryProvider(props: StoryProviderProps) {
     setFollowedIds(prune);
     setDismissedIds(prune);
   }, [users]);
+  const dismissedRef = useRef(dismissedIds);
+  dismissedRef.current = dismissedIds;
   const followSuggested = useCallback((user: StoryUser) => {
     setFollowedIds((prev) => new Set(prev).add(user.id));
     latest.current.onFollow?.({
@@ -284,7 +286,7 @@ export function StoryProvider(props: StoryProviderProps) {
   const orderRef = useRef<string[]>([]);
   const opened = useMemo<StoryContextValue['opened']>(() => {
     if (!session) return null;
-    const visible = playbackUsers(users);
+    const visible = playbackUsers(withoutDismissed(users, dismissedIds));
     const byId = new Map(visible.map((u) => [u.id, u]));
     const kept = orderRef.current.filter((id) => byId.has(id));
     const added = visible.filter((u) => !kept.includes(u.id)).map((u) => u.id);
@@ -296,7 +298,7 @@ export function StoryProvider(props: StoryProviderProps) {
       users: live,
       userIndex: live.findIndex((u) => u.id === session.userId),
     };
-  }, [session, users]);
+  }, [session, users, dismissedIds]);
 
   const openedRef = useRef(session);
   const closerRef = useRef<(() => void) | null>(null);
@@ -309,7 +311,9 @@ export function StoryProvider(props: StoryProviderProps) {
         // cannot slip through before React re-renders.
         if (openedRef.current) return;
         const ordered = sortUsers(
-          playbackUsers(latest.current.users),
+          playbackUsers(
+            withoutDismissed(latest.current.users, dismissedRef.current)
+          ),
           store,
           mergedConfig.sortUnseenFirst,
           mergedConfig.ownerBubble
