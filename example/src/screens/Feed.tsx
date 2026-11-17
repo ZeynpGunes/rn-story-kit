@@ -19,6 +19,7 @@ const markFollowing = (list: StoryPerson[] | undefined, id: string) =>
 
 export function Feed() {
   const [users, setUsers] = useState(makeUsers);
+  const [variant, setVariant] = useState<'circle' | 'card'>('circle');
   const [last, setLast] = useState('none yet');
   const note = useMemo(() => last, [last]);
 
@@ -82,6 +83,9 @@ export function Feed() {
       }}
       onLike={onLike}
       onFollow={onFollow}
+      onDismissSuggestion={(user) =>
+        setLast(`dismiss suggestion → ${user.name}`)
+      }
       onAddStory={() => setLast('onAddStory → open your create screen')}
       onSendMessage={(_story, user, text) =>
         setLast(`msg → ${user.name}: ${text}`)
@@ -90,7 +94,15 @@ export function Feed() {
       onShare={(story, user) => setLast(`share → ${user.name}/${story.id}`)}
     >
       <View style={styles.root}>
-        <StoryList />
+        <StoryList variant={variant} />
+        <Pressable
+          onPress={() => setVariant(variant === 'circle' ? 'card' : 'circle')}
+          style={styles.link}
+        >
+          <Text style={styles.linkText}>
+            Variant: {variant} (tap to toggle)
+          </Text>
+        </Pressable>
         <Pressable onPress={clearOwnStories} style={styles.link}>
           <Text style={styles.linkText}>Demo: clear own stories (show +)</Text>
         </Pressable>
