@@ -49,7 +49,9 @@ export function mediaGradient(
   fallback: string
 ): string[] {
   const explicit = (input.colors ?? [])
-    .filter((c) => hexToRgb(c) !== null)
+    .map((c) => hexToRgb(c))
+    .filter((c): c is RGB => c !== null)
+    .map(rgbToHex)
     .slice(0, 3);
   if (explicit.length > 0) return explicit;
 

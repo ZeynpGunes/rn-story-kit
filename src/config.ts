@@ -11,6 +11,9 @@ export interface StoryConfig {
     progressFillEasing: 'linear';
     longPressMs: number;
     longPressMaxDistance: number;
+    tapMaxDurationMs: number;
+    tapMaxDistance: number;
+    loadingShowAfterMs: number;
     uiHideMs: number;
     uiShowMs: number;
     cubePerspective: number;
@@ -78,6 +81,9 @@ export const defaultConfig: StoryConfig = {
     progressFillEasing: 'linear',
     longPressMs: 200,
     longPressMaxDistance: 10,
+    tapMaxDurationMs: 250,
+    tapMaxDistance: 10,
+    loadingShowAfterMs: 250,
     uiHideMs: 150,
     uiShowMs: 200,
     cubePerspective: 1000,

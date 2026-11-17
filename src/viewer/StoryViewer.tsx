@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from 'react';
-import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, useWindowDimensions } from 'react-native';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -19,13 +19,14 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 import { lerpRect } from '../model/gestureMath';
-import { enterUser } from '../model/navigation';
+import { enterUser, type NavResult } from '../model/navigation';
 import { measureWithTimeout } from '../provider/rectRegistry';
 import { useStoryContext } from '../provider/StoryProvider';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
-import type { Rect } from '../types';
+import type { Rect, StoryItem } from '../types';
 import { Header } from './Header';
 import { Scrim } from './Scrim';
+import { UserPage } from './UserPage';
 
 export interface StoryViewerProps {
   initialUserIndex: number;
@@ -61,11 +62,15 @@ export function StoryViewer({
   const { motion } = config;
 
   const users = opened?.users ?? [];
-  // Task 9 moves this with swipes; for now the viewer stays on one user.
-  const [userIndex] = useState(initialUserIndex);
-  const user = users[userIndex];
-  const [nav] = useState(() => enterUser(initialUserIndex, users, store));
+  const [nav, setNav] = useState(() => ({
+    ...enterUser(initialUserIndex, users, store),
+    // Bumped by "restart" so the first story's timer starts over.
+    restarts: 0,
+  }));
+  const user = users[nav.userIndex];
   const story = user?.stories[nav.storyIndex];
+  const held = useSharedValue(false);
+  const lastViewed = useRef<Record<string, number>>({});
 
   const onClosedRef = useRef(onClosed);
   onClosedRef.current = onClosed;
@@ -127,6 +132,28 @@ export function StoryViewer({
     isClosing,
     finish,
   ]);
+
+  const onNav = useCallback(
+    (r: NavResult) => {
+      if (r.kind === 'close') {
+        requestClose();
+        return;
+      }
+      if (userId) lastViewed.current[userId] = nav.storyIndex;
+      setNav((prev) => ({
+        ...r.state,
+        restarts: prev.restarts + (r.kind === 'restart' ? 1 : 0),
+      }));
+    },
+    [requestClose, userId, nav.storyIndex]
+  );
+
+  const onMediaFirstFrame = useCallback(
+    (item: StoryItem) => {
+      if (userId) store.markSeen(item.id, userId);
+    },
+    [store, userId]
+  );
 
   useEffect(() => {
     closerRef.current = requestClose;
@@ -206,22 +233,29 @@ export function StoryViewer({
         ]}
       >
         <Animated.View style={[styles.fill, contentStyle]}>
-          <View style={styles.fill}>
-            <Text testID="story-placeholder" style={styles.placeholder}>
-              {story.id}
-            </Text>
-          </View>
-          <Scrim safeAreaTop={insets.top} />
-          {customHeader !== undefined ? (
-            customHeader
-          ) : (
-            <Header
-              user={user}
-              story={story}
-              safeAreaTop={insets.top}
-              onClose={requestClose}
-            />
-          )}
+          <UserPage
+            key={`${user.id}:${nav.restarts}`}
+            user={user}
+            storyIndex={nav.storyIndex}
+            users={users}
+            lastViewed={lastViewed.current}
+            isActive
+            held={held}
+            onNav={onNav}
+            onMediaFirstFrame={onMediaFirstFrame}
+          >
+            <Scrim safeAreaTop={insets.top} />
+            {customHeader !== undefined ? (
+              customHeader
+            ) : (
+              <Header
+                user={user}
+                story={story}
+                safeAreaTop={insets.top}
+                onClose={requestClose}
+              />
+            )}
+          </UserPage>
         </Animated.View>
       </Animated.View>
     </ViewerContext.Provider>
@@ -231,5 +265,4 @@ export function StoryViewer({
 const styles = StyleSheet.create({
   frame: { position: 'absolute', overflow: 'hidden' },
   fill: { flex: 1 },
-  placeholder: { color: '#FFF', alignSelf: 'center', marginTop: '50%' },
 });

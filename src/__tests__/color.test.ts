@@ -103,6 +103,18 @@ describe('mediaGradient', () => {
     expect(stops[2]).toBe(rgbToHex(mix(first, black, 0.55)));
   });
 
+  it('normalises explicit colours', () => {
+    expect(mediaGradient({ colors: [' #abc'] }, '#000000')).toEqual([
+      '#AABBCC',
+    ]);
+  });
+
+  it('falls back on a valid but too-short thumbhash', () => {
+    expect(mediaGradient({ thumbhash: 'AQID' }, '#111214')).toEqual([
+      '#111214',
+    ]);
+  });
+
   it('falls back', () => {
     expect(mediaGradient({ thumbhash: '%%%' }, '#111214')).toEqual(['#111214']);
     expect(mediaGradient({ colors: ['bad'] }, '#111214')).toEqual(['#111214']);
