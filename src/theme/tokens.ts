@@ -101,6 +101,15 @@ const base: StoryTheme = {
       avatar: 44,
       rowGap: 12,
       closeColor: '#FFFFFF',
+      follow: {
+        height: 32,
+        paddingH: 14,
+        radius: 8,
+        bg: '#3797F0',
+        color: '#FFFFFF',
+        size: 13,
+        weight: '600',
+      },
     },
   },
 };

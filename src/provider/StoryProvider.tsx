@@ -20,6 +20,7 @@ import type {
   DeepPartial,
   Rect,
   StoryItem,
+  StoryPerson,
   StoryTheme,
   StoryUser,
 } from '../types';
@@ -53,6 +54,7 @@ export interface StoryProviderProps {
   onSendMessage?(story: StoryItem, user: StoryUser, text: string): void;
   onVoice?(story: StoryItem, user: StoryUser): void;
   onShare?(story: StoryItem, user: StoryUser): void;
+  onFollow?(person: StoryPerson): void;
   renderHeader?(p: StorySlotProps): ReactNode;
   renderFooter?(p: StorySlotProps): ReactNode;
   renderOverlay?(p: StorySlotProps): ReactNode;
@@ -105,6 +107,7 @@ export interface StoryContextValue {
   onSendMessage(story: StoryItem, user: StoryUser, text: string): void;
   onVoice(story: StoryItem, user: StoryUser): void;
   onShare(story: StoryItem, user: StoryUser): void;
+  onFollow(person: StoryPerson): void;
   /** Internal: the mounted viewer registers its close routine here. */
   closerRef: { current: (() => void) | null };
   /** Internal: the mounted viewer registers its imperative commands here. */
@@ -208,6 +211,10 @@ export function StoryProvider(props: StoryProviderProps) {
   const onShare = useCallback(
     (story: StoryItem, user: StoryUser) =>
       latest.current.onShare?.(story, user),
+    []
+  );
+  const onFollow = useCallback(
+    (person: StoryPerson) => latest.current.onFollow?.(person),
     []
   );
 
@@ -314,6 +321,7 @@ export function StoryProvider(props: StoryProviderProps) {
       onSendMessage,
       onVoice,
       onShare,
+      onFollow,
       closerRef,
       commandsRef,
       renderHeader,
@@ -340,6 +348,7 @@ export function StoryProvider(props: StoryProviderProps) {
       onSendMessage,
       onVoice,
       onShare,
+      onFollow,
       renderHeader,
       renderFooter,
       renderOverlay,

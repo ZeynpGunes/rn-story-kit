@@ -1,5 +1,5 @@
 import type { StoryActionsConfig } from '../config';
-import type { StoryItem, StoryUser } from '../types';
+import type { StoryItem, StoryPerson, StoryUser } from '../types';
 import { ActionsBar } from './ActionsBar';
 import { OwnerInsightsBar } from './OwnerInsightsBar';
 
@@ -14,6 +14,7 @@ export interface DefaultFooterProps {
   onSendMessage?(story: StoryItem, user: StoryUser, text: string): void;
   onVoice?(story: StoryItem, user: StoryUser): void;
   onShare?(story: StoryItem, user: StoryUser): void;
+  onFollow?(person: StoryPerson): void;
 }
 
 /** Built-in footer: owner insights or the others' action bar. */
@@ -28,9 +29,17 @@ export function DefaultFooter({
   onSendMessage,
   onVoice,
   onShare,
+  onFollow,
 }: DefaultFooterProps) {
   if (user.isOwner) {
-    return <OwnerInsightsBar story={story} pause={pause} resume={resume} />;
+    return (
+      <OwnerInsightsBar
+        story={story}
+        pause={pause}
+        resume={resume}
+        onFollow={onFollow}
+      />
+    );
   }
   return (
     <ActionsBar

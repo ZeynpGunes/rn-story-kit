@@ -26,3 +26,4 @@ export const likeActionLabel = (liked: boolean) =>
 export const voiceActionLabel = 'Voice message';
 export const shareActionLabel = 'Share story';
 export const sendMessageLabel = 'Send message';
+export const followPersonLabel = (name: string) => `Follow ${name}`;

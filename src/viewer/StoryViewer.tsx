@@ -81,6 +81,7 @@ export function StoryViewer({
     onSendMessage,
     onVoice,
     onShare,
+    onFollow,
   } = useStoryContext();
   const theme = useStoryTheme();
   const insets = useSafeAreaInsets();
@@ -428,6 +429,7 @@ export function StoryViewer({
                     onSendMessage={onSendMessage}
                     onVoice={onVoice}
                     onShare={onShare}
+                    onFollow={onFollow}
                   />
                 )}
               </View>
@@ -464,6 +466,7 @@ export function StoryViewer({
       onSendMessage,
       onVoice,
       onShare,
+      onFollow,
     ]
   );
 

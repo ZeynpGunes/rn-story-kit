@@ -6,12 +6,16 @@ import {
   StoryProvider,
   createMMKVSeenStorage,
   type StoryItem,
+  type StoryPerson,
   type StoryUser,
 } from 'rn-story-kit';
 import { makeUsers } from '../data';
 
 const mmkv = createMMKV();
 const seenStorage = createMMKVSeenStorage(mmkv);
+
+const markFollowing = (list: StoryPerson[] | undefined, id: string) =>
+  list?.map((p) => (p.id === id ? { ...p, following: true } : p));
 
 export function Feed() {
   const [users, setUsers] = useState(makeUsers);
@@ -37,12 +41,28 @@ export function Feed() {
     []
   );
 
+  const onFollow = useCallback((person: StoryPerson) => {
+    setLast(`follow → ${person.name}`);
+    setUsers((prev) =>
+      prev.map((u) => ({
+        ...u,
+        stories: u.stories.map((s) => ({
+          ...s,
+          viewers: markFollowing(s.viewers, person.id),
+          likers: markFollowing(s.likers, person.id),
+        })),
+      }))
+    );
+  }, []);
+
   return (
     <StoryProvider
       users={users}
       seenStorage={seenStorage}
       scheme="system"
+      config={{ followLabel: 'Takip Et' }}
       onLike={onLike}
+      onFollow={onFollow}
       onSendMessage={(story, user, text) =>
         setLast(`msg → ${user.name}: ${text}`)
       }
@@ -52,7 +72,7 @@ export function Feed() {
       <View style={styles.root}>
         <StoryList />
         <Text style={styles.note}>
-          Own story (you): view/like counts. Others: reply bar. Last action:{' '}
+          Own story (you): view/like counts + Follow. Others: reply bar. Last:{' '}
           {note}
         </Text>
       </View>
