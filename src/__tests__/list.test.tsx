@@ -68,6 +68,39 @@ describe('StoryList', () => {
     ]);
   });
 
+  it('owner bubble shows Your story and add badge when empty', async () => {
+    const onAddStory = jest.fn();
+    const owner: StoryUser = {
+      id: 'me',
+      name: 'me',
+      avatar: 'https://x/me.jpg',
+      isOwner: true,
+      stories: [],
+    };
+    await render(<StoryList />, {
+      wrapper: wrap([owner, bob], {
+        onAddStory,
+        config: { strings: { yourStory: 'Hikayen', addStory: 'Hikaye ekle' } },
+      }),
+    });
+    expect(screen.getByText('Hikayen')).toBeTruthy();
+    expect(screen.getByTestId('owner-add-badge')).toBeTruthy();
+    expect(screen.getByLabelText('Hikaye ekle')).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('bubble-me'));
+    expect(onAddStory).toHaveBeenCalledTimes(1);
+  });
+
+  it('hides owner when ownerBubble.show is false', async () => {
+    const owner: StoryUser = { ...ada, isOwner: true };
+    await render(<StoryList />, {
+      wrapper: wrap([owner, bob], {
+        config: { ownerBubble: { show: false } },
+      }),
+    });
+    expect(screen.queryByTestId('bubble-ada')).toBeNull();
+    expect(screen.getByTestId('bubble-bob')).toBeTruthy();
+  });
+
   it('sortUnseenFirst: false keeps the input order', async () => {
     const seenAda = {
       ...ada,

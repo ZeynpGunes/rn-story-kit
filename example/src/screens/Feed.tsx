@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { createMMKV } from 'react-native-mmkv';
 import {
   StoryList,
@@ -55,6 +55,13 @@ export function Feed() {
     );
   }, []);
 
+  const clearOwnStories = () => {
+    setUsers((prev) =>
+      prev.map((u) => (u.isOwner ? { ...u, stories: [] } : u))
+    );
+    setLast('own stories cleared — tap + to add');
+  };
+
   return (
     <StoryProvider
       users={users}
@@ -69,10 +76,13 @@ export function Feed() {
           noViewers: 'Henüz görüntüleyen yok',
           noLikes: 'Henüz beğeni yok',
           replyPlaceholder: 'Mesaj gönder...',
+          yourStory: 'Hikayen',
+          addStory: 'Hikaye ekle',
         },
       }}
       onLike={onLike}
       onFollow={onFollow}
+      onAddStory={() => setLast('onAddStory → open your create screen')}
       onSendMessage={(_story, user, text) =>
         setLast(`msg → ${user.name}: ${text}`)
       }
@@ -81,9 +91,11 @@ export function Feed() {
     >
       <View style={styles.root}>
         <StoryList />
+        <Pressable onPress={clearOwnStories} style={styles.link}>
+          <Text style={styles.linkText}>Demo: clear own stories (show +)</Text>
+        </Pressable>
         <Text style={styles.note}>
-          Own story (you): view/like counts + Follow. Others: reply bar. Last:{' '}
-          {note}
+          Own bubble = Hikayen. Empty = +. Last: {note}
         </Text>
       </View>
     </StoryProvider>
@@ -93,4 +105,6 @@ export function Feed() {
 const styles = StyleSheet.create({
   root: { flex: 1, paddingTop: 12 },
   note: { padding: 16, color: '#666' },
+  link: { paddingHorizontal: 16, paddingTop: 8 },
+  linkText: { color: '#3797F0', fontWeight: '600' },
 });

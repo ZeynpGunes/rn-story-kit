@@ -139,6 +139,7 @@ Users with no stories are hidden. Unseen users are sorted first.
 | `onVoice` | `(story, user) => void` | Mic pressed. |
 | `onShare` | `(story, user) => void` | Share / send pressed. |
 | `onFollow` | `(person) => void` | Follow pressed in the viewers / likers list. |
+| `onAddStory` | `() => void` | Empty owner bubble (+) pressed — navigate to create. |
 | `renderHeader` | `(p: StorySlotProps) => ReactNode` | Replace the header. See below. |
 | `renderFooter` | `(p: StorySlotProps) => ReactNode` | Replaces the default footer entirely. |
 | `renderOverlay` | `(p: StorySlotProps) => ReactNode` | Full-screen overlay slot. |
@@ -227,8 +228,29 @@ Pass `config` to `StoryProvider` to change behaviour. Defaults are in `defaultCo
 | `autoAdvanceWithScreenReader` | `false` | Keep auto-advancing while a screen reader is on. |
 | `formatTime` | relative time | `(createdAt: number) => string`, replaces the header time label. |
 | `actions` | all `true` | `{ message, like, voice, share }` — which controls show on others' stories. |
+| `ownerBubble` | see below | Own-story row in the list (`show`, `pinFirst`, `showAddWhenEmpty`). |
 | `strings` | `defaultStrings` | UI + accessibility copy. See [Strings (i18n)](#strings-i18n). |
 | `motion` | see `defaultConfig` | Durations, springs and gesture thresholds. |
+
+### Own story bubble
+
+Mark the signed-in user with `isOwner: true`.
+
+- Label uses `strings.yourStory` (default `'Your story'`), not `user.name`.
+- With stories: tap opens the viewer as usual; bubble stays first when `ownerBubble.pinFirst` is true.
+- With **no** stories and `ownerBubble.showAddWhenEmpty`: shows a **+** badge; tap calls `onAddStory` (you route to your create screen).
+- Hide entirely: `config.ownerBubble.show: false` (or omit `isOwner`).
+
+```tsx
+<StoryProvider
+  users={users}
+  onAddStory={() => navigation.navigate('CreateStory')}
+  config={{
+    ownerBubble: { show: true, pinFirst: true, showAddWhenEmpty: true },
+    strings: { yourStory: 'Hikayen', addStory: 'Hikaye ekle' },
+  }}
+>
+```
 
 ## Seen storage
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, type ComponentRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import Svg, { Path } from 'react-native-svg';
 import { measureWithTimeout } from '../provider/rectRegistry';
 import { useStoryContext } from '../provider/StoryProvider';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
@@ -15,9 +16,15 @@ export function StoryBubble({
   seen: boolean;
 }) {
   const theme = useStoryTheme();
-  const { registry, api, config, hiddenUserId } = useStoryContext();
+  const { registry, api, config, hiddenUserId, onAddStory } = useStoryContext();
   const ringRef = useRef<ComponentRef<typeof View>>(null);
   const { name } = theme.list;
+  const isOwner = user.isOwner === true;
+  const isEmptyOwner =
+    isOwner &&
+    user.stories.length === 0 &&
+    config.ownerBubble.showAddWhenEmpty;
+  const label = isOwner ? config.strings.yourStory : user.name;
 
   const measure = useCallback(
     () =>
@@ -35,6 +42,10 @@ export function StoryBubble({
   );
 
   const onPress = async () => {
+    if (isEmptyOwner) {
+      onAddStory();
+      return;
+    }
     const rect = await measureWithTimeout(
       registry,
       user.id,
@@ -43,15 +54,21 @@ export function StoryBubble({
     api.open(user.id, rect ?? undefined);
   };
 
+  const a11y = isEmptyOwner
+    ? config.strings.addStory
+    : isOwner
+      ? bubbleLabel(
+          config.strings,
+          config.strings.yourStory,
+          seen,
+          user.stories.length
+        )
+      : bubbleLabel(config.strings, user.name, seen, user.stories.length);
+
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={bubbleLabel(
-        config.strings,
-        user.name,
-        seen,
-        user.stories.length
-      )}
+      accessibilityLabel={a11y}
       onPress={onPress}
       testID={`bubble-${user.id}`}
       style={[
@@ -60,14 +77,15 @@ export function StoryBubble({
         hiddenUserId === user.id && styles.hidden,
       ]}
     >
-      <View ref={ringRef} collapsable={false}>
+      <View ref={ringRef} collapsable={false} style={styles.ringWrap}>
         <StoryRing
           size={theme.list.bubble}
-          seen={seen}
+          seen={isEmptyOwner ? true : seen}
           palette={user.ringColors ?? user.ringVariant}
           avatar={user.avatar}
           ringId={user.id}
         />
+        {isEmptyOwner && <AddBadge />}
       </View>
       <Text
         numberOfLines={name.lines}
@@ -79,16 +97,55 @@ export function StoryBubble({
           lineHeight: name.lineHeight,
           fontWeight: name.weight as '400',
           textAlign: name.align,
-          color: seen ? name.seenColor : name.color,
+          color: seen && !isEmptyOwner ? name.seenColor : name.color,
         }}
       >
-        {user.name}
+        {label}
       </Text>
     </Pressable>
+  );
+}
+
+function AddBadge() {
+  const { list } = useStoryTheme();
+  const b = list.addBadge;
+  return (
+    <View
+      testID="owner-add-badge"
+      pointerEvents="none"
+      style={[
+        styles.badge,
+        {
+          width: b.size,
+          height: b.size,
+          borderRadius: b.size / 2,
+          backgroundColor: b.bg,
+          borderColor: b.border,
+          borderWidth: b.borderWidth,
+        },
+      ]}
+    >
+      <Svg width={b.size * 0.55} height={b.size * 0.55} viewBox="0 0 24 24">
+        <Path
+          d="M12 5v14M5 12h14"
+          stroke={b.icon}
+          strokeWidth={2.4}
+          strokeLinecap="round"
+        />
+      </Svg>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   item: { alignItems: 'center' },
   hidden: { opacity: 0 },
+  ringWrap: { position: 'relative' },
+  badge: {
+    position: 'absolute',
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

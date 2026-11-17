@@ -21,10 +21,16 @@ export function StoryList({
   const version = useSeenVersion();
 
   const data = useMemo(
-    () => sortUsers(visibleUsers(users), store, config.sortUnseenFirst),
+    () =>
+      sortUsers(
+        visibleUsers(users, config.ownerBubble),
+        store,
+        config.sortUnseenFirst,
+        config.ownerBubble
+      ),
     // version: re-sort when seen state changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [users, store, config.sortUnseenFirst, version]
+    [users, store, config.sortUnseenFirst, config.ownerBubble, version]
   );
 
   if (data.length === 0) return null;

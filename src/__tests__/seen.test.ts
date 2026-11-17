@@ -185,6 +185,26 @@ describe('selectors', () => {
     expect(visibleUsers([])).toEqual([]);
   });
 
+  it('visibleUsers keeps empty owner when showAddWhenEmpty', () => {
+    const owner: StoryUser = { ...user('me', []), isOwner: true };
+    const a = user('a', [story('x')]);
+    expect(visibleUsers([owner, a]).map((u) => u.id)).toEqual(['me', 'a']);
+    expect(
+      visibleUsers([owner, a], {
+        show: true,
+        pinFirst: true,
+        showAddWhenEmpty: false,
+      })
+    ).toEqual([a]);
+    expect(
+      visibleUsers([owner, a], {
+        show: false,
+        pinFirst: true,
+        showAddWhenEmpty: true,
+      })
+    ).toEqual([a]);
+  });
+
   it('sortUsers puts unseen first, stable; false keeps order', () => {
     const A = user('A', [story('sa')]);
     const B = user('B', [story('nb')]);
@@ -194,5 +214,24 @@ describe('selectors', () => {
     const ids = (l: StoryUser[]) => l.map((x) => x.id);
     expect(ids(sortUsers(input, s(), true))).toEqual(['B', 'D', 'A', 'C']);
     expect(ids(sortUsers(input, s(), false))).toEqual(['A', 'B', 'C', 'D']);
+  });
+
+  it('sortUsers pins owner first when configured', () => {
+    const owner: StoryUser = {
+      ...user('me', [story('sm')]),
+      isOwner: true,
+    };
+    const B = user('B', [story('nb')]);
+    const ids = (l: StoryUser[]) => l.map((x) => x.id);
+    expect(ids(sortUsers([B, owner], s(), true))).toEqual(['me', 'B']);
+    expect(
+      ids(
+        sortUsers([B, owner], s(), true, {
+          show: true,
+          pinFirst: false,
+          showAddWhenEmpty: true,
+        })
+      )
+    ).toEqual(['B', 'me']);
   });
 });

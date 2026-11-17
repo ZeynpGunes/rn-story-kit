@@ -13,7 +13,12 @@ export { StoryThemeProvider, useStoryTheme } from './theme/StoryThemeProvider';
 export { lightTheme, darkTheme } from './theme/tokens';
 export { palettes } from './theme/palettes';
 export { defaultConfig } from './config';
-export type { StoryActionsConfig, StoryConfig, StoryStrings } from './config';
+export type {
+  StoryActionsConfig,
+  StoryConfig,
+  StoryOwnerBubbleConfig,
+  StoryStrings,
+} from './config';
 export { defaultStrings, fill } from './strings';
 export {
   createMemorySeenStorage,

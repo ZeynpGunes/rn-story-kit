@@ -66,6 +66,13 @@ const base: StoryTheme = {
       ellipsizeMode: 'tail',
       align: 'center',
     },
+    addBadge: {
+      size: 22,
+      bg: '#3797F0',
+      icon: '#FFFFFF',
+      border: '#FFFFFF',
+      borderWidth: 2,
+    },
   },
   avatarPlaceholder: '#E4E6EA',
   actions: {

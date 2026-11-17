@@ -9,6 +9,19 @@ export interface StoryActionsConfig {
   share: boolean;
 }
 
+/** How the signed-in user's (`isOwner`) bubble behaves in the list. */
+export interface StoryOwnerBubbleConfig {
+  /** When false, the owner row is hidden from the list. Default true. */
+  show: boolean;
+  /** Keep the owner bubble first. Default true. */
+  pinFirst: boolean;
+  /**
+   * When the owner has no stories, still show a bubble with a + control
+   * that calls `onAddStory`. Default true.
+   */
+  showAddWhenEmpty: boolean;
+}
+
 export interface StoryConfig {
   imageDurationMs: number;
   tapZoneRatio: number;
@@ -19,6 +32,8 @@ export interface StoryConfig {
   formatTime?: (createdAt: number) => string;
   /** Which action-bar controls to show on others' stories. All default true. */
   actions: StoryActionsConfig;
+  /** Own-story bubble in the list. */
+  ownerBubble: StoryOwnerBubbleConfig;
   /** User-facing copy. Override for i18n; see `defaultStrings`. */
   strings: StoryStrings;
   motion: {
@@ -91,6 +106,7 @@ export const defaultConfig: StoryConfig = {
   autoAdvanceWithScreenReader: false,
   mediaErrorAdvanceMs: 4000,
   actions: { message: true, like: true, voice: true, share: true },
+  ownerBubble: { show: true, pinFirst: true, showAddWhenEmpty: true },
   strings: defaultStrings,
   motion: {
     tapCrossfadeMs: 90,

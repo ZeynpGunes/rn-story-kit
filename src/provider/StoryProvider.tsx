@@ -24,7 +24,7 @@ import type {
   StoryTheme,
   StoryUser,
 } from '../types';
-import { sortUsers, visibleUsers } from '../seen/selectors';
+import { playbackUsers, sortUsers } from '../seen/selectors';
 import { shouldShowDefaultFooter } from '../viewer/DefaultFooter';
 import { StoryViewer } from '../viewer/StoryViewer';
 import { createRectRegistry, type RectRegistry } from './rectRegistry';
@@ -55,6 +55,8 @@ export interface StoryProviderProps {
   onVoice?(story: StoryItem, user: StoryUser): void;
   onShare?(story: StoryItem, user: StoryUser): void;
   onFollow?(person: StoryPerson): void;
+  /** Empty owner bubble (+) pressed — host navigates to create a story. */
+  onAddStory?(): void;
   renderHeader?(p: StorySlotProps): ReactNode;
   renderFooter?(p: StorySlotProps): ReactNode;
   renderOverlay?(p: StorySlotProps): ReactNode;
@@ -108,6 +110,8 @@ export interface StoryContextValue {
   onVoice(story: StoryItem, user: StoryUser): void;
   onShare(story: StoryItem, user: StoryUser): void;
   onFollow(person: StoryPerson): void;
+  /** Internal: stable; empty-owner + control. */
+  onAddStory(): void;
   /** Internal: the mounted viewer registers its close routine here. */
   closerRef: { current: (() => void) | null };
   /** Internal: the mounted viewer registers its imperative commands here. */
@@ -217,6 +221,7 @@ export function StoryProvider(props: StoryProviderProps) {
     (person: StoryPerson) => latest.current.onFollow?.(person),
     []
   );
+  const onAddStory = useCallback(() => latest.current.onAddStory?.(), []);
 
   const mergedConfig = useMemo(() => {
     const merged = deepMerge(defaultConfig, config) as StoryConfig;
@@ -226,6 +231,10 @@ export function StoryProvider(props: StoryProviderProps) {
       ...defaultConfig.strings,
       ...(config?.strings ?? {}),
     };
+    merged.ownerBubble = {
+      ...defaultConfig.ownerBubble,
+      ...(config?.ownerBubble ?? {}),
+    };
     return merged;
   }, [config]);
 
@@ -233,7 +242,7 @@ export function StoryProvider(props: StoryProviderProps) {
   const orderRef = useRef<string[]>([]);
   const opened = useMemo<StoryContextValue['opened']>(() => {
     if (!session) return null;
-    const visible = visibleUsers(users);
+    const visible = playbackUsers(users);
     const byId = new Map(visible.map((u) => [u.id, u]));
     const kept = orderRef.current.filter((id) => byId.has(id));
     const added = visible.filter((u) => !kept.includes(u.id)).map((u) => u.id);
@@ -258,9 +267,10 @@ export function StoryProvider(props: StoryProviderProps) {
         // cannot slip through before React re-renders.
         if (openedRef.current) return;
         const ordered = sortUsers(
-          visibleUsers(latest.current.users),
+          playbackUsers(latest.current.users),
           store,
-          mergedConfig.sortUnseenFirst
+          mergedConfig.sortUnseenFirst,
+          mergedConfig.ownerBubble
         );
         const userIndex = ordered.findIndex((u) => u.id === userId);
         if (userIndex === -1) return;
@@ -328,6 +338,7 @@ export function StoryProvider(props: StoryProviderProps) {
       onVoice,
       onShare,
       onFollow,
+      onAddStory,
       closerRef,
       commandsRef,
       renderHeader,
@@ -355,6 +366,7 @@ export function StoryProvider(props: StoryProviderProps) {
       onVoice,
       onShare,
       onFollow,
+      onAddStory,
       renderHeader,
       renderFooter,
       renderOverlay,

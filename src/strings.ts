@@ -41,6 +41,10 @@ export interface StoryStrings {
   bubbleNew: string;
   /** e.g. `{name}, seen, {count} stories` */
   bubbleSeen: string;
+  /** Label under the owner's bubble, e.g. `Your story`. */
+  yourStory: string;
+  /** Accessibility label for the empty-owner + control. */
+  addStory: string;
   /** e.g. `{name}, story {number} of {count}` */
   announce: string;
   /** Appended when time is present, e.g. `, {time}` */
@@ -72,6 +76,8 @@ export const defaultStrings: StoryStrings = {
   prevStory: 'Previous story',
   bubbleNew: '{name}, new story, {count} stories',
   bubbleSeen: '{name}, seen, {count} stories',
+  yourStory: 'Your story',
+  addStory: 'Add story',
   announce: '{name}, story {number} of {count}',
   announceTime: ', {time}',
 };

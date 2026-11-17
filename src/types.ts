@@ -130,6 +130,13 @@ export interface StoryTheme {
       ellipsizeMode: 'head' | 'middle' | 'tail' | 'clip';
       align: 'left' | 'center' | 'right';
     };
+    addBadge: {
+      size: number;
+      bg: string;
+      icon: string;
+      border: string;
+      borderWidth: number;
+    };
   };
   avatarPlaceholder: string;
   actions: {
