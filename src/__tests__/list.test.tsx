@@ -150,6 +150,42 @@ describe('StoryList', () => {
     expect(opened).toMatchObject({ userId: 'ada', rect });
   });
 
+  describe('a scroll never opens a story', () => {
+    // A fast flick can reach JS as press-in then release with no move in
+    // between, so Pressable still calls onPress. The bubble checks the
+    // distance itself.
+    const touch = (x: number, y: number) => ({
+      nativeEvent: { pageX: x, pageY: y },
+    });
+    const pressFromTo = async (dx: number) => {
+      const onOpen = jest.fn();
+      await render(<StoryList />, { wrapper: wrap([ada], { onOpen }) });
+      const bubble = screen.getByTestId('bubble-ada');
+      await fireEvent(bubble, 'pressIn', touch(300, 100));
+      await fireEvent(bubble, 'press', touch(300 + dx, 100));
+      await act(async () => {});
+      return onOpen;
+    };
+
+    it('ignores a press that ended 320pt from where it started', async () => {
+      expect(await pressFromTo(-320)).not.toHaveBeenCalled();
+    });
+
+    it('ignores a press that moved more than 10pt vertically', async () => {
+      const onOpen = jest.fn();
+      await render(<StoryList />, { wrapper: wrap([ada], { onOpen }) });
+      const bubble = screen.getByTestId('bubble-ada');
+      await fireEvent(bubble, 'pressIn', touch(300, 100));
+      await fireEvent(bubble, 'press', touch(300, 120));
+      await act(async () => {});
+      expect(onOpen).not.toHaveBeenCalled();
+    });
+
+    it('still opens on a tap with a small wobble', async () => {
+      expect(await pressFromTo(6)).toHaveBeenCalledWith('ada');
+    });
+  });
+
   it('labels new then seen and thins the seen ring', async () => {
     let store: ReturnType<typeof useSeenStore>;
     function Probe() {

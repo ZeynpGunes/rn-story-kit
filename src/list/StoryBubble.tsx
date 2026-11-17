@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, type ComponentRef } from 'react';
 import {
   Pressable,
+  type GestureResponderEvent,
   StyleSheet,
   Text,
   View,
@@ -16,6 +17,9 @@ import { bubbleLabel, suggestedBubbleLabel } from '../viewer/a11y';
 import { DismissButton, FollowButton, MIN_HIT } from './SuggestedBadges';
 import { StoryCardRing } from './StoryCardRing';
 import { StoryRing } from './StoryRing';
+
+/** Largest finger travel, in points, that still counts as a tap. */
+const MAX_TAP_MOVE = 10;
 
 export function StoryBubble({
   user,
@@ -105,7 +109,25 @@ export function StoryBubble({
     [registry, user.id, measure]
   );
 
-  const onPress = async () => {
+  const pressStart = useRef<{ x: number; y: number } | null>(null);
+  const onPressIn = (e: GestureResponderEvent) => {
+    const { pageX, pageY } = e.nativeEvent;
+    pressStart.current = { x: pageX, y: pageY };
+  };
+
+  const onPress = async (e: GestureResponderEvent) => {
+    // A fast flick of the list can still end as a press. Only a touch that
+    // stayed put counts.
+    const start = pressStart.current;
+    const end = e?.nativeEvent;
+    pressStart.current = null;
+    if (
+      start &&
+      end &&
+      Math.hypot(end.pageX - start.x, end.pageY - start.y) > MAX_TAP_MOVE
+    ) {
+      return;
+    }
     if (isEmptyOwner) {
       onAddStory();
       return;
@@ -139,6 +161,7 @@ export function StoryBubble({
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={a11y}
+        onPressIn={onPressIn}
         onPress={onPress}
         testID={`bubble-${user.id}`}
         style={[styles.item, { width: itemW }, hidden && styles.hidden]}
