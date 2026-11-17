@@ -10,9 +10,8 @@ export const progressLabel = (index: number, count: number) =>
 
 export const userAnnouncement = (
   name: string,
+  storyNumber: number,
   count: number,
   time: string | null
 ) =>
-  time === null
-    ? `${name}, story 1 of ${count}`
-    : `${name}, story 1 of ${count}, ${time} ago`;
+  `${name}, story ${storyNumber} of ${count}${time === null ? '' : `, ${time}`}`;

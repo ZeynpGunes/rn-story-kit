@@ -115,6 +115,28 @@ const v2 = ada.stories[1]!;
 const state = { userIndex: 0, storyIndex: 0 };
 
 describe('video timer', () => {
+  it('advanceBlocked keeps playing and runs progress out without advancing', async () => {
+    const onNav = jest.fn();
+    let blocked: SharedValue<boolean>;
+    function Blocked() {
+      blocked = useSharedValue(true);
+      return <Page onNav={onNav} advanceBlocked={blocked} />;
+    }
+    await render(
+      <StoryProvider users={users} scheme="dark">
+        <VideoSlotsProvider active={ada.stories[0]} next={undefined}>
+          <Blocked />
+        </VideoSlotsProvider>
+      </StoryProvider>
+    );
+    await emit(v1, 'sourceLoad', { duration: 2 });
+    await firstFrame();
+    await advance(2500);
+    expect(fillWidth()).toBe('100%');
+    expect(playerFor(v1).playing).toBe(true);
+    expect(onNav).not.toHaveBeenCalled();
+  });
+
   it('uses the sourceLoad duration (7300ms)', async () => {
     const onNav = jest.fn();
     await mount({ onNav });

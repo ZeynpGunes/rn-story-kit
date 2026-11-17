@@ -53,6 +53,8 @@ export interface UserPageProps {
   lastViewed: Record<string, number>;
   isActive: boolean;
   held: SharedValue<boolean>;
+  /** While true, a finished story or media error does not auto-advance. */
+  advanceBlocked?: SharedValue<boolean>;
   /** While true, taps and long-presses are ignored (user transition, close). */
   inputBlocked?: SharedValue<boolean>;
   /** Pager pans; they compete with this page's tap and long-press. */
@@ -93,6 +95,7 @@ function StoryPage({
   lastViewed,
   isActive,
   held,
+  advanceBlocked,
   inputBlocked,
   pagerGesture,
   chromeOpacity,
@@ -141,6 +144,10 @@ function StoryPage({
     c.onNav(tapNext(c.navState, c.users));
   }, []);
 
+  const autoAdvance = useCallback(() => {
+    if (!advanceBlocked?.value) goNext();
+  }, [advanceBlocked, goNext]);
+
   const { progress } = useStoryTimer({
     durationMs:
       story.durationMs ??
@@ -148,7 +155,7 @@ function StoryPage({
       config.imageDurationMs,
     active: isActive,
     held: timerHeld,
-    onComplete: goNext,
+    onComplete: autoAdvance,
   });
 
   // A video needs its duration and a rendered first frame before it runs.
@@ -170,9 +177,9 @@ function StoryPage({
 
   useEffect(() => {
     if (!isActive || !failed) return;
-    const t = setTimeout(goNext, config.mediaErrorAdvanceMs);
+    const t = setTimeout(autoAdvance, config.mediaErrorAdvanceMs);
     return () => clearTimeout(t);
-  }, [isActive, failed, goNext, config.mediaErrorAdvanceMs]);
+  }, [isActive, failed, autoAdvance, config.mediaErrorAdvanceMs]);
 
   useEffect(() => {
     if (!isActive || ready || failed) {

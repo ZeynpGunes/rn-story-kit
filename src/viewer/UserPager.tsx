@@ -71,6 +71,8 @@ export interface UserPagerProps {
   lastViewed: Record<string, number>;
   /** Hold from outside the pager (app background, screen reader, API). */
   externalHeld: SharedValue<boolean>;
+  /** While true, finished timers and error timeouts do not advance. */
+  advanceBlocked: SharedValue<boolean>;
   /** Receives the pager's navigation commands while mounted. */
   commandsRef: { current: PagerCommands | null };
   /** Vertical drag offset; the viewer frame follows it (dismiss/swipe-up). */
@@ -95,6 +97,7 @@ export function UserPager({
   nav,
   lastViewed,
   externalHeld,
+  advanceBlocked,
   commandsRef,
   dragY,
   onNav,
@@ -227,13 +230,17 @@ export function UserPager({
         };
         // Only the neighbours are mounted: farther targets jump, no cube.
         if (Math.abs(delta) === 1) onPageNav(r);
-        else if (!busy.current && !isTransitioning.value) c.onNav(r);
+        else if (!busy.current && !isTransitioning.value) {
+          // Align the UI-thread index before React re-renders the pages.
+          activeIndex.value = index;
+          c.onNav(r);
+        }
       },
     };
     return () => {
       commandsRef.current = null;
     };
-  }, [commandsRef, onPageNav, store, isTransitioning]);
+  }, [commandsRef, onPageNav, store, isTransitioning, activeIndex]);
 
   // Programmatic user change: animate once the target page is rendered.
   useEffect(() => {
@@ -418,6 +425,7 @@ export function UserPager({
               lastViewed={lastViewed}
               isActive={role === 0}
               held={held}
+              advanceBlocked={advanceBlocked}
               inputBlocked={inputBlocked}
               pagerGesture={role === 0 ? pagerGesture : undefined}
               chromeOpacity={chromeOpacity}
