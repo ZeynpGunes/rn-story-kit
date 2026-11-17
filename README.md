@@ -149,8 +149,27 @@ Users with no stories are hidden. Unseen users are sorted first.
 
 When you do not pass `renderFooter`, the viewer shows a built-in footer:
 
-- **Own story** (`user.isOwner`): view count and like count. Tap either to open a modal of `viewers` / `likers`. People with `following !== true` show a Follow button (`config.followLabel`, default `'Follow'`); handle it with `onFollow` and refresh `users`.
+- **Own story** (`user.isOwner`): view count and like count. Tap either to open a modal of `viewers` / `likers`. People with `following !== true` show a Follow button; handle it with `onFollow` and refresh `users`.
 - **Others**: message field, like, voice, and share. Toggle each with `config.actions` (all default `true`). Wire behaviour with `onLike`, `onSendMessage`, `onVoice`, and `onShare` — the library only draws the controls and pauses playback while the field is focused or the modal is open.
+
+### Strings (i18n)
+
+All user-facing copy lives in `config.strings` (defaults in `defaultStrings`). Pass only the keys you want to override; templates use `{name}`, `{n}`, `{index}`, `{count}`, `{number}`, `{time}`, `{status}`-style tokens:
+
+```tsx
+<StoryProvider
+  users={users}
+  config={{
+    strings: {
+      follow: 'Takip Et',
+      viewersTitle: 'Görüntüleyenler',
+      likesTitle: 'Beğeniler',
+      replyPlaceholder: 'Mesaj gönder...',
+      viewOther: '{n} görüntülenme',
+    },
+  }}
+>
+```
 
 ### Other exports
 
@@ -208,8 +227,7 @@ Pass `config` to `StoryProvider` to change behaviour. Defaults are in `defaultCo
 | `autoAdvanceWithScreenReader` | `false` | Keep auto-advancing while a screen reader is on. |
 | `formatTime` | relative time | `(createdAt: number) => string`, replaces the header time label. |
 | `actions` | all `true` | `{ message, like, voice, share }` — which controls show on others' stories. |
-| `replyPlaceholder` | `'Send message...'` | Placeholder for the reply field. |
-| `followLabel` | `'Follow'` | Label for the Follow button in the people list. |
+| `strings` | `defaultStrings` | UI + accessibility copy. See [Strings (i18n)](#strings-i18n). |
 | `motion` | see `defaultConfig` | Durations, springs and gesture thresholds. |
 
 ## Seen storage

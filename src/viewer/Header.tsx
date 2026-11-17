@@ -5,8 +5,6 @@ import { formatRelativeTime } from '../model/time';
 import { useStoryContext } from '../provider/StoryProvider';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { StoryItem, StoryUser } from '../types';
-import { closeLabel } from './a11y';
-
 export interface HeaderProps {
   user: StoryUser;
   story: StoryItem;
@@ -83,7 +81,7 @@ export function Header({ user, story, safeAreaTop, onClose }: HeaderProps) {
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={closeLabel}
+        accessibilityLabel={config.strings.closeStories}
         onPress={onClose}
         style={[
           styles.close,

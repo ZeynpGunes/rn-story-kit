@@ -7,7 +7,6 @@ export interface DefaultFooterProps {
   user: StoryUser;
   story: StoryItem;
   actions: StoryActionsConfig;
-  replyPlaceholder: string;
   pause(): void;
   resume(): void;
   onLike?(story: StoryItem, user: StoryUser, nextLiked: boolean): void;
@@ -22,7 +21,6 @@ export function DefaultFooter({
   user,
   story,
   actions,
-  replyPlaceholder,
   pause,
   resume,
   onLike,
@@ -46,7 +44,6 @@ export function DefaultFooter({
       user={user}
       story={story}
       actions={actions}
-      replyPlaceholder={replyPlaceholder}
       pause={pause}
       resume={resume}
       onLike={onLike}

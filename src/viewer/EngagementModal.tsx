@@ -20,8 +20,9 @@ import Svg, { Path } from 'react-native-svg';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
+import { useStoryContext } from '../provider/StoryProvider';
 import type { StoryPerson } from '../types';
-import { closeEngagementLabel, followPersonLabel } from './a11y';
+import { followPersonLabel } from './a11y';
 import { HeartIcon } from './icons';
 
 export type EngagementKind = 'viewers' | 'likers';
@@ -29,20 +30,9 @@ export type EngagementKind = 'viewers' | 'likers';
 export interface EngagementModalProps {
   kind: EngagementKind | null;
   people: StoryPerson[];
-  followLabel: string;
   onClose(): void;
   onFollow?(person: StoryPerson): void;
 }
-
-const titles: Record<EngagementKind, string> = {
-  viewers: 'Viewers',
-  likers: 'Likes',
-};
-
-const emptyCopy: Record<EngagementKind, string> = {
-  viewers: 'No viewers yet',
-  likers: 'No likes yet',
-};
 
 const DISMISS_DISTANCE = 120;
 const DISMISS_VELOCITY = 900;
@@ -51,16 +41,25 @@ const DISMISS_VELOCITY = 900;
 export function EngagementModal({
   kind,
   people,
-  followLabel,
   onClose,
   onFollow,
 }: EngagementModalProps) {
   const { actions } = useStoryTheme();
+  const { config } = useStoryContext();
+  const s = config.strings;
   const insets = useSafeAreaInsets();
   const { height } = useWindowDimensions();
   const m = actions.modal;
   const f = m.follow;
   const open = kind !== null;
+  const title =
+    kind === 'viewers'
+      ? s.viewersTitle
+      : kind === 'likers'
+        ? s.likesTitle
+        : '';
+  const empty =
+    kind === 'viewers' ? s.noViewers : kind === 'likers' ? s.noLikes : '';
 
   const translateY = useSharedValue(0);
   const backdrop = useSharedValue(1);
@@ -130,7 +129,7 @@ export function EngagementModal({
             style={StyleSheet.absoluteFill}
             onPress={requestClose}
             accessibilityRole="button"
-            accessibilityLabel={closeEngagementLabel}
+            accessibilityLabel={s.closeList}
           />
         </Animated.View>
         <GestureDetector gesture={pan}>
@@ -156,12 +155,12 @@ export function EngagementModal({
                   color: m.titleColor,
                 }}
               >
-                {kind ? titles[kind] : ''}
+                {title}
               </Text>
               <Pressable
                 onPress={requestClose}
                 accessibilityRole="button"
-                accessibilityLabel={closeEngagementLabel}
+                accessibilityLabel={s.closeList}
                 hitSlop={8}
                 style={styles.closeHit}
               >
@@ -184,7 +183,7 @@ export function EngagementModal({
                   fontSize: m.nameSize,
                 }}
               >
-                {emptyCopy[kind]}
+                {empty}
               </Text>
             ) : (
               <FlatList
@@ -218,7 +217,7 @@ export function EngagementModal({
                         {kind === 'likers' && (
                           <View
                             testID={`liked-${item.id}`}
-                            accessibilityLabel="Liked"
+                            accessibilityLabel={s.liked}
                             style={[
                               styles.likedBadge,
                               {
@@ -252,7 +251,7 @@ export function EngagementModal({
                           <Pressable
                             testID={`follow-${item.id}`}
                             accessibilityRole="button"
-                            accessibilityLabel={followPersonLabel(item.name)}
+                            accessibilityLabel={followPersonLabel(s, item.name)}
                             onPress={() => onFollow?.(item)}
                             style={{
                               height: f.height,
@@ -271,7 +270,7 @@ export function EngagementModal({
                                 fontWeight: f.weight as '600',
                               }}
                             >
-                              {followLabel}
+                              {s.follow}
                             </Text>
                           </Pressable>
                         ) : null}
@@ -291,7 +290,11 @@ export function EngagementModal({
 const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: 'flex-end' },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.45)',
   },
   sheet: {

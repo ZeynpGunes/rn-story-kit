@@ -1,29 +1,63 @@
-export const bubbleLabel = (name: string, seen: boolean, count: number) =>
-  `${name}, ${seen ? 'seen' : 'new story'}, ${count} stories`;
+import { defaultStrings, fill, type StoryStrings } from '../strings';
 
-export const closeLabel = 'Close stories';
-export const nextStoryAction = 'Next story';
-export const prevStoryAction = 'Previous story';
+const s = (partial?: StoryStrings | null): StoryStrings =>
+  partial ? { ...defaultStrings, ...partial } : defaultStrings;
 
-export const progressLabel = (index: number, count: number) =>
-  `Story ${index} of ${count}`;
+export const bubbleLabel = (
+  strings: StoryStrings | null | undefined,
+  name: string,
+  seen: boolean,
+  count: number
+) => {
+  const copy = s(strings);
+  return fill(seen ? copy.bubbleSeen : copy.bubbleNew, { name, count });
+};
+
+export const progressLabel = (
+  strings: StoryStrings | null | undefined,
+  index: number,
+  count: number
+) => fill(s(strings).storyProgress, { index, count });
 
 export const userAnnouncement = (
+  strings: StoryStrings | null | undefined,
   name: string,
   storyNumber: number,
   count: number,
   time: string | null
-) =>
-  `${name}, story ${storyNumber} of ${count}${time === null ? '' : `, ${time}`}`;
+) => {
+  const copy = s(strings);
+  return (
+    fill(copy.announce, { name, number: storyNumber, count }) +
+    (time === null ? '' : fill(copy.announceTime, { time }))
+  );
+};
 
-export const viewCountLabel = (n: number) =>
-  `${n} ${n === 1 ? 'view' : 'views'}`;
-export const likeCountLabel = (n: number) =>
-  `${n} ${n === 1 ? 'like' : 'likes'}`;
-export const closeEngagementLabel = 'Close list';
-export const likeActionLabel = (liked: boolean) =>
-  liked ? 'Unlike story' : 'Like story';
-export const voiceActionLabel = 'Voice message';
-export const shareActionLabel = 'Share story';
-export const sendMessageLabel = 'Send message';
-export const followPersonLabel = (name: string) => `Follow ${name}`;
+export const viewCountLabel = (
+  strings: StoryStrings | null | undefined,
+  n: number
+) => {
+  const copy = s(strings);
+  return fill(n === 1 ? copy.viewOne : copy.viewOther, { n });
+};
+
+export const likeCountLabel = (
+  strings: StoryStrings | null | undefined,
+  n: number
+) => {
+  const copy = s(strings);
+  return fill(n === 1 ? copy.likeOne : copy.likeOther, { n });
+};
+
+export const followPersonLabel = (
+  strings: StoryStrings | null | undefined,
+  name: string
+) => fill(s(strings).followPerson, { name });
+
+export const likeActionLabel = (
+  strings: StoryStrings | null | undefined,
+  liked: boolean
+) => {
+  const copy = s(strings);
+  return liked ? copy.unlikeStory : copy.likeStory;
+};

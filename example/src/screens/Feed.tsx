@@ -60,10 +60,20 @@ export function Feed() {
       users={users}
       seenStorage={seenStorage}
       scheme="system"
-      config={{ followLabel: 'Takip Et' }}
+      config={{
+        strings: {
+          follow: 'Takip Et',
+          followPerson: '{name} hesabını takip et',
+          viewersTitle: 'Görüntüleyenler',
+          likesTitle: 'Beğeniler',
+          noViewers: 'Henüz görüntüleyen yok',
+          noLikes: 'Henüz beğeni yok',
+          replyPlaceholder: 'Mesaj gönder...',
+        },
+      }}
       onLike={onLike}
       onFollow={onFollow}
-      onSendMessage={(story, user, text) =>
+      onSendMessage={(_story, user, text) =>
         setLast(`msg → ${user.name}: ${text}`)
       }
       onVoice={(story, user) => setLast(`voice → ${user.name}/${story.id}`)}

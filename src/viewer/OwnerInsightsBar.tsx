@@ -53,7 +53,7 @@ export function OwnerInsightsBar({
         <Pressable
           testID="owner-views"
           accessibilityRole="button"
-          accessibilityLabel={viewCountLabel(views)}
+          accessibilityLabel={viewCountLabel(config.strings, views)}
           onPress={() => open('viewers')}
           style={[styles.chip, { gap: 6 }]}
         >
@@ -72,7 +72,7 @@ export function OwnerInsightsBar({
         <Pressable
           testID="owner-likes"
           accessibilityRole="button"
-          accessibilityLabel={likeCountLabel(likes)}
+          accessibilityLabel={likeCountLabel(config.strings, likes)}
           onPress={() => open('likers')}
           style={[styles.chip, { gap: 6, marginLeft: c.gap }]}
         >
@@ -92,7 +92,6 @@ export function OwnerInsightsBar({
       <EngagementModal
         kind={kind}
         people={people}
-        followLabel={config.followLabel}
         onClose={close}
         onFollow={onFollow}
       />

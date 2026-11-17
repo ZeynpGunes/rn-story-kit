@@ -111,7 +111,7 @@ describe('engagement footer', () => {
 
   it('shows Follow only for people not already followed and fires onFollow', async () => {
     const onFollow = jest.fn();
-    await mount({ onFollow, config: { followLabel: 'Takip Et' } });
+    await mount({ onFollow, config: { strings: { follow: 'Takip Et' } } });
     await act(async () => viewer.open('me'));
     await fireEvent.press(screen.getByTestId('owner-views'));
 
