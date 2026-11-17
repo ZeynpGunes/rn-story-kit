@@ -1,6 +1,6 @@
 # rn-story-kit
 
-Instagram-style stories for React Native
+Instagram-style stories for React Native.
 
 ## Requirements
 
