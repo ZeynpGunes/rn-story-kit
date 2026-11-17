@@ -1,17 +1,10 @@
-import { useEffect } from 'react';
 import { Image } from 'expo-image';
 import { StyleSheet, View } from 'react-native';
-import Animated, {
-  Easing,
-  useAnimatedProps,
-  useSharedValue,
-  withTiming,
-} from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import Svg, { Circle, Defs, LinearGradient, Stop } from 'react-native-svg';
-import { useStoryContext } from '../provider/StoryProvider';
-import { palettes } from '../theme/palettes';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { PaletteName } from '../types';
+import { useRingStops, useSeenFade } from './ringShared';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -34,23 +27,13 @@ export function StoryRing({
   showRing = true,
 }: StoryRingProps) {
   const theme = useStoryTheme();
-  const { scheme, config } = useStoryContext();
   const { width, gap, seenWidth } = theme.ring;
   const avatarSize = typeof size === 'number' ? size : theme.ring.sizes[size];
   const outer = avatarSize + 2 * (width + gap);
 
-  const chosen = palette ?? theme.ring.palette;
-  const stops = Array.isArray(chosen) ? chosen : palettes[chosen][scheme];
+  const stops = useRingStops(palette);
   const gradientId = `ring-${ringId}`;
-
-  const opacity = useSharedValue(seen || !showRing ? 0 : 1);
-  useEffect(() => {
-    opacity.value = withTiming(seen || !showRing ? 0 : 1, {
-      duration: config.motion.seenRingMs,
-      easing: Easing.out(Easing.cubic),
-    });
-  }, [seen, showRing, opacity, config.motion.seenRingMs]);
-  const gradientProps = useAnimatedProps(() => ({ opacity: opacity.value }));
+  const gradientProps = useSeenFade(seen || !showRing);
 
   return (
     <View style={{ width: outer, height: outer }}>
