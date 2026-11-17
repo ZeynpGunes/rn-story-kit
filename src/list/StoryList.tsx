@@ -3,18 +3,22 @@ import { FlatList, type ViewStyle } from 'react-native';
 import { useSeenVersion, useStoryContext } from '../provider/StoryProvider';
 import { isUserSeen, sortUsers, visibleUsers } from '../seen/selectors';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
+import type { StoryListVariant } from '../config';
 import { StoryBubble } from './StoryBubble';
 
 export interface StoryListProps {
   style?: ViewStyle;
   contentContainerStyle?: ViewStyle;
   ListHeaderComponent?: ReactElement;
+  /** Bubble shape. Defaults to `config.list.variant` (circle). */
+  variant?: StoryListVariant;
 }
 
 export function StoryList({
   style,
   contentContainerStyle,
   ListHeaderComponent,
+  variant,
 }: StoryListProps = {}) {
   const theme = useStoryTheme();
   const { users, store, config, onEndReached, dismissedIds } =
@@ -68,7 +72,11 @@ export function StoryList({
       ListHeaderComponent={ListHeaderComponent}
       onEndReached={onEndReached}
       renderItem={({ item }) => (
-        <StoryBubble user={item} seen={isUserSeen(item, store)} />
+        <StoryBubble
+          user={item}
+          seen={isUserSeen(item, store)}
+          variant={variant ?? config.list.variant}
+        />
       )}
     />
   );

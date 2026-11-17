@@ -22,6 +22,9 @@ export interface StoryOwnerBubbleConfig {
   showAddWhenEmpty: boolean;
 }
 
+/** Bubble shape in the list. */
+export type StoryListVariant = 'circle' | 'card';
+
 export interface StoryConfig {
   imageDurationMs: number;
   tapZoneRatio: number;
@@ -34,6 +37,8 @@ export interface StoryConfig {
   actions: StoryActionsConfig;
   /** Own-story bubble in the list. */
   ownerBubble: StoryOwnerBubbleConfig;
+  /** List defaults; `StoryList` props win. */
+  list: { variant: StoryListVariant };
   /** User-facing copy. Override for i18n; see `defaultStrings`. */
   strings: StoryStrings;
   motion: {
@@ -107,6 +112,7 @@ export const defaultConfig: StoryConfig = {
   mediaErrorAdvanceMs: 4000,
   actions: { message: true, like: true, voice: true, share: true },
   ownerBubble: { show: true, pinFirst: true, showAddWhenEmpty: true },
+  list: { variant: 'circle' },
   strings: defaultStrings,
   motion: {
     tapCrossfadeMs: 90,

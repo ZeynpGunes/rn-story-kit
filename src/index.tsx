@@ -7,6 +7,8 @@ export type {
 export { useStoryViewer } from './provider/useStoryViewer';
 export { StoryList } from './list/StoryList';
 export type { StoryListProps } from './list/StoryList';
+export { StoryCardRing } from './list/StoryCardRing';
+export type { StoryCardRingProps } from './list/StoryCardRing';
 export { StoryRing } from './list/StoryRing';
 export type { StoryRingProps } from './list/StoryRing';
 export { StoryThemeProvider, useStoryTheme } from './theme/StoryThemeProvider';
@@ -16,6 +18,7 @@ export { defaultConfig } from './config';
 export type {
   StoryActionsConfig,
   StoryConfig,
+  StoryListVariant,
   StoryOwnerBubbleConfig,
   StoryStrings,
 } from './config';

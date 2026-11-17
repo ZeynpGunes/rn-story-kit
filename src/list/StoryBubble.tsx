@@ -1,26 +1,52 @@
 import { useCallback, useEffect, useRef, type ComponentRef } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type ViewStyle,
+} from 'react-native';
 import Svg, { Path } from 'react-native-svg';
 import { measureWithTimeout } from '../provider/rectRegistry';
 import { useStoryContext } from '../provider/StoryProvider';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
+import type { StoryListVariant } from '../config';
 import type { Rect, StoryUser } from '../types';
 import { bubbleLabel, suggestedBubbleLabel } from '../viewer/a11y';
 import { DismissButton, FollowButton } from './SuggestedBadges';
+import { StoryCardRing } from './StoryCardRing';
 import { StoryRing } from './StoryRing';
 
 export function StoryBubble({
   user,
   seen,
+  variant = 'circle',
 }: {
   user: StoryUser;
   seen: boolean;
+  variant?: StoryListVariant;
 }) {
   const theme = useStoryTheme();
   const { registry, api, config, hiddenUserId, onAddStory, followedIds } =
     useStoryContext();
   const ringRef = useRef<ComponentRef<typeof View>>(null);
-  const { name } = theme.list;
+  const { name, card, suggested } = theme.list;
+  const isCard = variant === 'card';
+  const cardInset = card.ringWidth + card.gap;
+  const cardOuterW = card.width + 2 * cardInset;
+  const cardOuterRadius = card.radius + cardInset;
+  const cardAddStyle: ViewStyle = {
+    bottom: cardInset + suggested.follow.inset,
+    alignSelf: 'center',
+  };
+  const cardDismissStyle: ViewStyle = {
+    top: cardInset + suggested.close.inset,
+    right: cardInset + suggested.close.inset,
+  };
+  const cardFollowStyle: ViewStyle = {
+    bottom: cardInset + suggested.follow.inset,
+    right: cardInset + suggested.follow.inset,
+  };
   const isOwner = user.isOwner === true;
   const isEmptyOwner =
     isOwner && user.stories.length === 0 && config.ownerBubble.showAddWhenEmpty;
@@ -33,10 +59,16 @@ export function StoryBubble({
       new Promise<Rect | null>((resolve) => {
         if (!ringRef.current) return resolve(null);
         ringRef.current.measureInWindow((x, y, width, height) =>
-          resolve({ x, y, width, height })
+          resolve({
+            x,
+            y,
+            width,
+            height,
+            radius: isCard ? cardOuterRadius : width / 2,
+          })
         );
       }),
-    []
+    [isCard, cardOuterRadius]
   );
   useEffect(
     () => registry.register(user.id, measure),
@@ -77,32 +109,50 @@ export function StoryBubble({
       testID={`bubble-${user.id}`}
       style={[
         styles.item,
-        { width: theme.list.itemWidth, alignSelf: 'flex-start' },
+        {
+          width: isCard ? cardOuterW : theme.list.itemWidth,
+          alignSelf: 'flex-start',
+        },
         hiddenUserId === user.id && styles.hidden,
       ]}
     >
       <View ref={ringRef} collapsable={false} style={styles.ringWrap}>
-        <StoryRing
-          size={theme.list.bubble}
-          seen={seen}
-          showRing={!isEmptyOwner}
-          palette={user.ringColors ?? user.ringVariant}
-          avatar={user.avatar}
-          ringId={user.id}
-        />
-        {isEmptyOwner && <AddBadge />}
+        {isCard ? (
+          <StoryCardRing
+            seen={seen}
+            showRing={!isEmptyOwner}
+            palette={user.ringColors ?? user.ringVariant}
+            cover={user.cover ?? user.avatar}
+            ringId={user.id}
+          />
+        ) : (
+          <StoryRing
+            size={theme.list.bubble}
+            seen={seen}
+            showRing={!isEmptyOwner}
+            palette={user.ringColors ?? user.ringVariant}
+            avatar={user.avatar}
+            ringId={user.id}
+          />
+        )}
+        {isEmptyOwner && (
+          <AddBadge
+            size={isCard ? suggested.follow.size : undefined}
+            style={isCard ? cardAddStyle : undefined}
+          />
+        )}
         {isSuggested && (
           <DismissButton
             user={user}
-            size={theme.list.suggested.circle.closeSize}
-            style={styles.dismissCircle}
+            size={isCard ? suggested.close.size : suggested.circle.closeSize}
+            style={isCard ? cardDismissStyle : styles.dismissCircle}
           />
         )}
         {showFollow && (
           <FollowButton
             user={user}
-            size={theme.list.suggested.circle.followSize}
-            style={styles.followCircle}
+            size={isCard ? suggested.follow.size : suggested.circle.followSize}
+            style={isCard ? cardFollowStyle : styles.followCircle}
           />
         )}
       </View>
@@ -110,8 +160,8 @@ export function StoryBubble({
         numberOfLines={name.lines}
         ellipsizeMode={name.ellipsizeMode}
         style={{
-          marginTop: name.marginTop,
-          maxWidth: name.maxWidth,
+          marginTop: isCard ? card.labelMarginTop : name.marginTop,
+          maxWidth: isCard ? cardOuterW : name.maxWidth,
           fontSize: name.size,
           lineHeight: name.lineHeight,
           fontWeight: name.weight as '400',
@@ -125,9 +175,9 @@ export function StoryBubble({
   );
 }
 
-function AddBadge() {
+function AddBadge({ size, style }: { size?: number; style?: ViewStyle }) {
   const { list } = useStoryTheme();
-  const b = list.addBadge;
+  const b = { ...list.addBadge, size: size ?? list.addBadge.size };
   return (
     <View
       testID="owner-add-badge"
@@ -142,6 +192,7 @@ function AddBadge() {
           borderColor: b.border,
           borderWidth: b.borderWidth,
         },
+        style,
       ]}
     >
       <Svg width={b.size * 0.55} height={b.size * 0.55} viewBox="0 0 24 24">

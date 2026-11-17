@@ -1,7 +1,10 @@
-import { render, screen } from '@testing-library/react-native';
-import type { ReactNode } from 'react';
+import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import { useEffect, type ReactNode } from 'react';
+import { View } from 'react-native';
 import { StoryCardRing } from '../list/StoryCardRing';
-import { StoryProvider } from '../provider/StoryProvider';
+import { StoryList } from '../list/StoryList';
+import { StoryProvider, useStoryContext } from '../provider/StoryProvider';
+import type { Rect, StoryUser } from '../types';
 
 const wrap = ({ children }: { children: ReactNode }) => (
   <StoryProvider users={[]} scheme="light">
@@ -72,5 +75,156 @@ describe('StoryCardRing', () => {
     });
     expect(screen.queryByTestId('ring-active-kate')).toBeNull();
     expect(screen.queryByTestId('ring-seen-kate')).toBeNull();
+  });
+});
+
+describe('StoryList card variant', () => {
+  const story = (id: string) => ({
+    id,
+    type: 'image' as const,
+    uri: `https://x/${id}.jpg`,
+  });
+  const ada: StoryUser = {
+    id: 'ada',
+    name: 'Ada',
+    avatar: 'https://x/a.jpg',
+    cover: 'https://x/cover-a.jpg',
+    stories: [story('a1')],
+  };
+  const kate: StoryUser = {
+    id: 'kate',
+    name: 'Kate',
+    avatar: 'https://x/k.jpg',
+    suggested: true,
+    stories: [story('k1'), story('k2')],
+  };
+  const owner: StoryUser = {
+    id: 'me',
+    name: 'me',
+    avatar: 'https://x/me.jpg',
+    isOwner: true,
+    stories: [],
+  };
+  const withUsers =
+    (users: StoryUser[], extra = {}) =>
+    ({ children }: { children: ReactNode }) => (
+      <StoryProvider users={users} scheme="light" {...extra}>
+        {children}
+      </StoryProvider>
+    );
+
+  it('defaults to circles', async () => {
+    await render(<StoryList />, { wrapper: withUsers([ada]) });
+    expect(
+      find('View', (n) => n.props.source === 'https://x/a.jpg')
+    ).toBeTruthy();
+    expect(screen.getByTestId('ring-active-ada').props.r).toBeDefined();
+  });
+
+  it('variant prop renders cards with the cover image', async () => {
+    await render(<StoryList variant="card" />, { wrapper: withUsers([ada]) });
+    expect(screen.getByTestId('ring-active-ada').props.rx).toBeDefined();
+    expect(
+      find('View', (n) => n.props.source === 'https://x/cover-a.jpg')
+    ).toBeTruthy();
+  });
+
+  it('config.list.variant sets it app-wide and the prop wins', async () => {
+    const wrapper = withUsers([ada], { config: { list: { variant: 'card' } } });
+    await render(<StoryList />, { wrapper });
+    expect(screen.getByTestId('ring-active-ada').props.rx).toBeDefined();
+    await screen.rerender(<StoryList variant="circle" />);
+    expect(screen.getByTestId('ring-active-ada').props.r).toBeDefined();
+  });
+
+  it('falls back to the avatar when there is no cover', async () => {
+    await render(<StoryList variant="card" />, {
+      wrapper: withUsers([{ ...ada, cover: undefined }]),
+    });
+    expect(
+      find('View', (n) => n.props.source === 'https://x/a.jpg')
+    ).toBeTruthy();
+  });
+
+  it('seen card has the thin grey stroke', async () => {
+    const seenAda = { ...ada, stories: [{ ...ada.stories[0]!, seen: true }] };
+    await render(<StoryList variant="card" />, {
+      wrapper: withUsers([seenAda]),
+    });
+    expect(screen.getByTestId('ring-seen-ada').props.strokeWidth).toBe(1.5);
+    expect(screen.getByTestId('ring-seen-ada').props.stroke).toBe('#C9CCD1');
+  });
+
+  it('card suggested: follow and dismiss work and open nothing', async () => {
+    const onFollow = jest.fn();
+    const onDismissSuggestion = jest.fn();
+    const onOpen = jest.fn();
+    await render(<StoryList variant="card" />, {
+      wrapper: withUsers([kate], { onFollow, onDismissSuggestion, onOpen }),
+    });
+    expect(screen.getByLabelText('Kate, suggested, 2 stories')).toBeTruthy();
+    const follow = screen.getByLabelText('Follow Kate');
+    expect(Object.assign({}, ...[follow.props.style].flat(2))).toMatchObject({
+      width: 32,
+      height: 32,
+    });
+    await fireEvent.press(follow);
+    expect(onFollow).toHaveBeenCalledTimes(1);
+    await fireEvent.press(screen.getByLabelText("Don't suggest Kate"));
+    expect(onDismissSuggestion).toHaveBeenCalledTimes(1);
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
+  it('empty owner card shows a centred add badge and no ring', async () => {
+    const onAddStory = jest.fn();
+    await render(<StoryList variant="card" />, {
+      wrapper: withUsers([owner], { onAddStory }),
+    });
+    expect(screen.getByTestId('owner-add-badge')).toBeTruthy();
+    expect(screen.queryByTestId('ring-active-me')).toBeNull();
+    expect(screen.queryByLabelText(/Follow/)).toBeNull();
+    await fireEvent.press(screen.getByTestId('bubble-me'));
+    expect(onAddStory).toHaveBeenCalledTimes(1);
+  });
+
+  const measureAda = async (
+    variant: 'card' | 'circle',
+    w: number,
+    h: number
+  ) => {
+    let rect: Rect | null = null;
+    function Probe() {
+      const { registry } = useStoryContext();
+      useEffect(() => {
+        registry.measure('ada').then((r) => {
+          rect = r;
+        });
+      }, [registry]);
+      return null;
+    }
+    const spy = jest
+      .spyOn(View.prototype as any, 'measureInWindow')
+      .mockImplementation(((cb: any) => cb(0, 0, w, h)) as any);
+    await render(
+      <>
+        <StoryList variant={variant} />
+        <Probe />
+      </>,
+      { wrapper: withUsers([ada]) }
+    );
+    await act(async () => {});
+    spy.mockRestore();
+    return rect;
+  };
+
+  it('measures the card corner radius', async () => {
+    expect(await measureAda('card', 111, 161)).toMatchObject({
+      width: 111,
+      radius: 14 + 5.5,
+    });
+  });
+
+  it('measures a circle as width / 2', async () => {
+    expect(await measureAda('circle', 70, 70)).toMatchObject({ radius: 35 });
   });
 });
