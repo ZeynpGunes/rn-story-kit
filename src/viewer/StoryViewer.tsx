@@ -199,11 +199,10 @@ export function StoryViewer({
 
   // Parent hold for every page's timer: set from JS, read on the UI thread.
   const appBackground = useSharedValue(false);
-  const screenReaderHold = useSharedValue(false);
+  // Screen reader on (and no opt-in): playback runs, only auto-advance stops.
+  const advanceBlocked = useSharedValue(false);
   const apiPaused = useSharedValue(false);
-  const held = useDerivedValue(
-    () => appBackground.value || screenReaderHold.value || apiPaused.value
-  );
+  const held = useDerivedValue(() => appBackground.value || apiPaused.value);
   const holdForReader = !config.autoAdvanceWithScreenReader;
   useEffect(() => {
     const sub = AppState.addEventListener('change', (s) => {
@@ -214,7 +213,7 @@ export function StoryViewer({
   useEffect(() => {
     let live = true;
     const apply = (on: boolean) => {
-      screenReaderHold.value = on && holdForReader;
+      advanceBlocked.value = on && holdForReader;
     };
     AccessibilityInfo.isScreenReaderEnabled().then((on) => live && apply(on));
     const sub = AccessibilityInfo.addEventListener(
@@ -225,7 +224,14 @@ export function StoryViewer({
       live = false;
       sub.remove();
     };
-  }, [screenReaderHold, holdForReader]);
+  }, [advanceBlocked, holdForReader]);
+
+  const pauseApi = useCallback(() => {
+    apiPaused.value = true;
+  }, [apiPaused]);
+  const resumeApi = useCallback(() => {
+    apiPaused.value = false;
+  }, [apiPaused]);
 
   const pagerCommands = useRef<PagerCommands | null>(null);
   useEffect(() => {
@@ -233,17 +239,13 @@ export function StoryViewer({
       next: () => pagerCommands.current?.next(),
       prev: () => pagerCommands.current?.prev(),
       goToUser: (id) => pagerCommands.current?.goToUser(id),
-      pause: () => {
-        apiPaused.value = true;
-      },
-      resume: () => {
-        apiPaused.value = false;
-      },
+      pause: pauseApi,
+      resume: resumeApi,
     };
     return () => {
       commandsRef.current = null;
     };
-  }, [commandsRef, apiPaused]);
+  }, [commandsRef, pauseApi, resumeApi]);
   const toggleMagicTap = useCallback(() => {
     apiPaused.value = !apiPaused.value;
     return true;
@@ -258,9 +260,9 @@ export function StoryViewer({
         ? null
         : formatTime
           ? formatTime(created)
-          : formatRelativeTime(created, Date.now());
+          : `${formatRelativeTime(created, Date.now())} ago`;
     AccessibilityInfo.announceForAccessibility(
-      userAnnouncement(user.name, user.stories.length, time)
+      userAnnouncement(user.name, nav.storyIndex + 1, user.stories.length, time)
     );
     // Only when the user changes, not on every story.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -375,8 +377,8 @@ export function StoryViewer({
         story: s,
         storyIndex,
         close: requestClose,
-        pause: noop,
-        resume: noop,
+        pause: pauseApi,
+        resume: resumeApi,
       };
       const defaultHeader = (
         <Header
@@ -430,6 +432,8 @@ export function StoryViewer({
       renderFooter,
       renderOverlay,
       requestClose,
+      pauseApi,
+      resumeApi,
       insets.top,
       insets.bottom,
     ]
@@ -466,6 +470,7 @@ export function StoryViewer({
               nav={nav}
               lastViewed={lastViewed.current}
               externalHeld={held}
+              advanceBlocked={advanceBlocked}
               commandsRef={pagerCommands}
               dragY={dragY}
               onNav={onNav}
@@ -478,8 +483,6 @@ export function StoryViewer({
     </ViewerContext.Provider>
   );
 }
-
-const noop = () => {};
 
 /** Renders a slot; `undefined` (not null) falls back when one is given. */
 function SlotRenderer({

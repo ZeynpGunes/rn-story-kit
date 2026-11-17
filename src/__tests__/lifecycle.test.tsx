@@ -118,25 +118,21 @@ describe('app state', () => {
 });
 
 describe('screen reader', () => {
-  it('does not auto-advance by default', async () => {
+  it('lets progress run to the end but does not advance by default', async () => {
     readerEnabled = true;
     await open();
     await display();
     await advance(6000);
-    expect(fillWidth()).toBe('0%');
+    expect(fillWidth()).toBe('100%');
     expect(label(1, 3)).toBeTruthy();
   });
 
-  it('screenReaderChanged toggles the hold', async () => {
+  it('screenReaderChanged toggles the advance block', async () => {
     await open();
     await display();
     await act(async () => readerListener(true));
-    const frozen = fillWidth();
-    await advance(2000);
-    expect(fillWidth()).toBe(frozen);
-    await act(async () => readerListener(false));
-    await advance(1000);
-    expect(fillWidth()).not.toBe(frozen);
+    await advance(5100);
+    expect(label(1, 3)).toBeTruthy();
   });
 
   it('autoAdvanceWithScreenReader: true keeps advancing', async () => {
@@ -184,6 +180,23 @@ describe('screen reader', () => {
     );
     await advance(1000);
     expect(fillWidth()).not.toBe(frozen);
+  });
+
+  it('announces the entered story number and time of the shown story', async () => {
+    const t = mk('U1', 'Ada', [
+      img('a1', { seen: true }),
+      img('a2', { seen: true }),
+      img('a3', { createdAt: Date.now() - 2 * HOUR }),
+    ]);
+    await open('U1', [t, bob()]);
+    expect(announce).toHaveBeenCalledWith('Ada, story 3 of 3, 2h ago');
+  });
+
+  it('does not append "ago" to a custom formatTime', async () => {
+    await open('U1', [ada(), bob()], {
+      config: { formatTime: () => 'yesterday' },
+    });
+    expect(announce).toHaveBeenCalledWith('Ada, story 1 of 3, yesterday');
   });
 
   it('announces the user on open and on user change', async () => {
@@ -285,6 +298,20 @@ describe('imperative api', () => {
     expect(screen.getByText('Cy')).toBeTruthy();
   });
 
+  it('non-adjacent goToUser puts the new page in place in the same act', async () => {
+    await open();
+    await act(async () => viewer.goToUser('U3'));
+    const style = getAnimatedStyle as unknown as (e: unknown) => {
+      opacity: number;
+      transform: { translateX?: number }[];
+    };
+    const st = style(
+      screen.getByTestId('story-page-U3', { includeHiddenElements: true })
+    );
+    expect(st.opacity).toBe(1);
+    expect(st.transform.find((x) => 'translateX' in x)?.translateX).toBe(0);
+  });
+
   it('goToUser with an unknown id does nothing', async () => {
     await open();
     await act(async () => viewer.goToUser('nope'));
@@ -314,6 +341,25 @@ describe('slots', () => {
         {extra}
       </>
     );
+
+  it('slot pause() and resume() hold and release progress', async () => {
+    let slot: StorySlotProps;
+    await open('U1', [ada(), bob(), cy()], {
+      renderFooter: (p: StorySlotProps) => {
+        slot = p;
+        return null;
+      },
+    });
+    await display();
+    await advance(1000);
+    await act(async () => slot.pause());
+    const frozen = fillWidth();
+    await advance(2000);
+    expect(fillWidth()).toBe(frozen);
+    await act(async () => slot.resume());
+    await advance(1000);
+    expect(fillWidth()).not.toBe(frozen);
+  });
 
   it('footer and overlay render for the active page only', async () => {
     await open('U1', [ada(), bob(), cy()], {
