@@ -9,7 +9,11 @@ import {
 import { enterUser, tapNext } from '../model/navigation';
 import { StoryProvider, useStoryContext } from '../provider/StoryProvider';
 import type { StoryItem, StoryUser } from '../types';
-import { usePreload } from '../viewer/media/preload';
+import {
+  nextVideoTarget,
+  preloadTargets,
+  usePreload,
+} from '../viewer/media/preload';
 import { VideoSlotsProvider } from '../viewer/media/videoSlots';
 import { UserPage, type UserPageProps } from '../viewer/UserPage';
 
@@ -19,6 +23,8 @@ const { __players, __reset } = jest.requireMock('expo-video') as {
 };
 interface MockPlayer {
   source: unknown;
+  playing: boolean;
+  replace: jest.Mock;
   play: jest.Mock;
   pause: jest.Mock;
   emit(event: string, payload?: unknown): void;
@@ -263,7 +269,92 @@ describe('player cap', () => {
   });
 });
 
+describe('slot lifecycle', () => {
+  const dan = user('U1', [vid('v1'), vid('v2'), img('i3')]);
+  const i3 = dan.stories[2]!;
+  const view = (storyIndex: number, active: StoryItem, next?: StoryItem) => (
+    <StoryProvider users={[dan]} scheme="dark">
+      <VideoSlotsProvider active={active} next={next}>
+        <Page user={dan} users={[dan]} storyIndex={storyIndex} />
+      </VideoSlotsProvider>
+    </StoryProvider>
+  );
+  const playingCount = () => __players.filter((p) => p.playing).length;
+
+  it('pauses and clears freed players: v1 -> v2 -> i3', async () => {
+    const r = await render(view(0, v1, v2));
+    const p1 = playerFor(v1);
+    const p2 = playerFor(v2);
+    expect(playingCount()).toBeLessThanOrEqual(1);
+    await r.rerender(view(1, v2, undefined));
+    await advance(50);
+    expect(p1.pause).toHaveBeenCalled();
+    expect(p1.replace).toHaveBeenLastCalledWith(null);
+    expect(playingCount()).toBeLessThanOrEqual(1);
+    await r.rerender(view(2, i3, undefined));
+    await advance(50);
+    expect(p2.pause).toHaveBeenCalled();
+    expect(p2.replace).toHaveBeenLastCalledWith(null);
+    expect(playingCount()).toBe(0);
+  });
+
+  it('ignores a recycled slot stale status until its own sourceLoad', async () => {
+    const v3 = vid('v3');
+    const two = user('U1', [v1, v3]);
+    const onNav = jest.fn();
+    const render2 = (idx: number, active: StoryItem) => (
+      <StoryProvider users={[two]} scheme="dark">
+        <VideoSlotsProvider active={active} next={undefined}>
+          <Page user={two} users={[two]} storyIndex={idx} onNav={onNav} />
+        </VideoSlotsProvider>
+      </StoryProvider>
+    );
+    const r = await render(render2(0, v1));
+    const slot = playerFor(v1) as MockPlayer & {
+      status: string;
+      duration: number;
+    };
+    await emit(v1, 'sourceLoad', { duration: 7.3 });
+    slot.status = 'readyToPlay';
+    slot.duration = 7.3;
+    await r.rerender(render2(1, v3));
+    await advance(50);
+    expect(playerFor(v3)).toBe(slot);
+    await firstFrame();
+    await advance(10000);
+    expect(onNav).not.toHaveBeenCalled();
+    expect(fillWidth()).toBe('0%');
+    await emit(v3, 'sourceLoad', { duration: 3 });
+    await advance(2900);
+    expect(onNav).not.toHaveBeenCalled();
+    await advance(200);
+    expect(onNav).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('usePreload', () => {
+  it('preloads the next user entry video when the next story is an image', async () => {
+    const mixed = user('U1', [vid('m1'), img('m2')]);
+    const nxt = user('U2', [vid('n1')]);
+    function Probe() {
+      const { store } = useStoryContext();
+      const t = preloadTargets(
+        [mixed, nxt],
+        { userIndex: 0, storyIndex: 0 },
+        store
+      );
+      return (
+        <VideoSlotsProvider active={undefined} next={nextVideoTarget(t)} />
+      );
+    }
+    await render(
+      <StoryProvider users={[mixed, nxt]} scheme="dark">
+        <Probe />
+      </StoryProvider>
+    );
+    expect(playerFor(nxt.stories[0]!)).toBeTruthy();
+  });
+
   function Harness({
     nav,
   }: {

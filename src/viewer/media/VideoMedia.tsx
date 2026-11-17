@@ -21,7 +21,9 @@ export interface VideoMediaProps {
 }
 
 // VideoPlayer extends expo's SharedObject; `expo` is not installed here, so
-// the typings lose addListener. Declare the slice we use.
+// the typings lose addListener. Declare the slice we use; it mirrors the
+// `sourceLoad` and `statusChange` entries of expo-video 58's
+// VideoPlayerEvents.
 interface PlayerEvents {
   addListener(
     event: 'sourceLoad',
@@ -59,7 +61,11 @@ export function VideoMedia({
   onDuration,
   onError,
 }: VideoMediaProps) {
-  const player = useVideoSlot(story.id);
+  const slot = useVideoSlot(story.id);
+  const player = slot?.player ?? null;
+  const loadedDuration = slot?.loadedDuration ?? null;
+  const loadedRef = useRef(loadedDuration);
+  loadedRef.current = loadedDuration;
   const fadeMs = useStoryContext().config.motion.thumbVideoCrossfadeMs;
   const [thumbShown, setThumbShown] = useState(true);
   const thumbOpacity = useSharedValue(1);
@@ -70,10 +76,11 @@ export function VideoMedia({
 
   useEffect(() => {
     if (!player) return;
-    let ready = player.status === 'readyToPlay';
-    if (ready && player.duration > 0) {
-      cb.current.onDuration(player.duration * 1000);
-    }
+    // Status/duration are stale right after replace(); trust them only
+    // once this source's own sourceLoad was seen by the slot.
+    const known = loadedRef.current;
+    let ready = known !== null && player.status === 'readyToPlay';
+    if (known !== null && known > 0) cb.current.onDuration(known * 1000);
     const events = player as unknown as PlayerEvents;
     const subs = [
       events.addListener('sourceLoad', ({ duration }) =>
@@ -86,7 +93,10 @@ export function VideoMedia({
         } else if (status === 'loading' && ready) {
           cb.current.onBuffering(true);
         } else if (status === 'error') {
+          cb.current.onBuffering(false);
           cb.current.onError();
+        } else if (status === 'idle') {
+          cb.current.onBuffering(false);
         }
       }),
     ];
@@ -98,6 +108,9 @@ export function VideoMedia({
     if (playing) player.play();
     else player.pause();
   }, [player, playing]);
+
+  // The slot outlives this view; never leave it playing.
+  useEffect(() => () => player?.pause(), [player]);
 
   const fadeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(fadeTimer.current), []);

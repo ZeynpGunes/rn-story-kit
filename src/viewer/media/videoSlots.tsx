@@ -13,11 +13,29 @@ import type { StoryItem } from '../../types';
 /** Hard cap on live players: the active story plus one preloaded video. */
 const SLOT_COUNT = 2;
 
-const SlotsContext = createContext<ReadonlyMap<string, VideoPlayer>>(new Map());
+export interface VideoSlot {
+  player: VideoPlayer;
+  /**
+   * Duration in seconds, set from this slot's own sourceLoad for the
+   * current source; null until then. Player status/duration are stale
+   * right after replace(), so only this value is trustworthy.
+   */
+  loadedDuration: number | null;
+}
 
-/** Player holding the source of story `id`, or null until it is loaded. */
-export function useVideoSlot(id: string): VideoPlayer | null {
+const SlotsContext = createContext<ReadonlyMap<string, VideoSlot>>(new Map());
+
+/** Slot holding the source of story `id`, or null until it is assigned. */
+export function useVideoSlot(id: string): VideoSlot | null {
   return useContext(SlotsContext).get(id) ?? null;
+}
+
+// Same slice of expo-video 58's event map that VideoMedia uses.
+interface SourceLoadEvents {
+  addListener(
+    event: 'sourceLoad',
+    fn: (e: { duration: number }) => void
+  ): { remove(): void };
 }
 
 export interface VideoSlotsProviderProps {
@@ -48,7 +66,14 @@ export function VideoSlotsProvider({
   const loaded = useRef<(string | null)[]>(
     Array<string | null>(SLOT_COUNT).fill(null)
   );
+  const durations = useRef<(number | null)[]>(
+    Array<number | null>(SLOT_COUNT).fill(null)
+  );
   const [loadedKey, setLoadedKey] = useState('');
+  const publish = () =>
+    setLoadedKey(
+      loaded.current.map((id, i) => `${id}:${durations.current[i]}`).join('|')
+    );
 
   const wanted = [active, next].filter(
     (s): s is StoryItem => s?.type === 'video'
@@ -69,19 +94,42 @@ export function VideoSlotsProvider({
       const id = s?.id ?? null;
       if (id === loaded.current[i]) return;
       loaded.current[i] = id;
+      durations.current[i] = null;
       const player = players[i];
-      if (!player || !s) return;
-      player.replace(s.uri);
+      if (!player) return;
+      // Freed or reassigned: never keep playing the previous story.
       player.pause();
+      if (s) {
+        player.replace(s.uri);
+        player.pause();
+      } else {
+        player.replace(null);
+      }
     });
-    setLoadedKey(loaded.current.join('|'));
+    publish();
   }, [assignedKey, players]);
 
+  useEffect(() => {
+    const subs = players.map((player, i) =>
+      (player as unknown as SourceLoadEvents).addListener(
+        'sourceLoad',
+        ({ duration }) => {
+          if (!loaded.current[i]) return;
+          durations.current[i] = duration;
+          publish();
+        }
+      )
+    );
+    return () => subs.forEach((sub) => sub.remove());
+  }, [players]);
+
   const map = useMemo(() => {
-    const m = new Map<string, VideoPlayer>();
+    const m = new Map<string, VideoSlot>();
     loaded.current.forEach((id, i) => {
       const player = players[i];
-      if (id && player) m.set(id, player);
+      if (id && player) {
+        m.set(id, { player, loadedDuration: durations.current[i] ?? null });
+      }
     });
     return m;
     // loadedKey changes whenever loaded.current does.
