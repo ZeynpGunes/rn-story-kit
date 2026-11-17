@@ -1,4 +1,9 @@
-import { Pressable, StyleSheet, type ViewStyle } from 'react-native';
+import {
+  Pressable,
+  StyleSheet,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native';
 import Svg, { Circle, Path } from 'react-native-svg';
 import { useStoryContext } from '../provider/StoryProvider';
 import { fill } from '../strings';
@@ -29,7 +34,7 @@ function RoundButton({
   label: string;
   size: number;
   bg: string;
-  style: ViewStyle;
+  style: StyleProp<ViewStyle>;
   onPress(): void;
   children: React.ReactNode;
 }) {
@@ -102,10 +107,13 @@ export function DismissButton({
   user,
   size,
   style,
+  borderColor,
 }: {
   user: StoryUser;
   size: number;
   style: ViewStyle;
+  /** When set, draws a 2px border so the badge reads as part of the bubble. */
+  borderColor?: string;
 }) {
   const { suggested } = useStoryTheme().list;
   const { config, dismissSuggestion } = useStoryContext();
@@ -116,7 +124,7 @@ export function DismissButton({
       label={fill(config.strings.dismissSuggestion, { name: user.name })}
       size={size}
       bg={suggested.close.bg}
-      style={style}
+      style={borderColor ? [style, { borderWidth: 2, borderColor }] : style}
       onPress={() => dismissSuggestion(user)}
     >
       <Svg width={icon} height={icon} viewBox="0 0 24 24">

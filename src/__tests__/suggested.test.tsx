@@ -153,6 +153,16 @@ describe('suggested bubbles (circle)', () => {
     }
   );
 
+  it('draws the circle X inside the ring corner with a 2px list-colour border', async () => {
+    await render(<StoryList />, { wrapper: wrap([kate]) });
+    const st = flat(screen.getByLabelText("Don't suggest Kate").props.style);
+    expect(st.borderWidth).toBe(2);
+    expect(st.borderColor).toBe('#FFFFFF');
+    // ring spans x 4.5..79.5 in the 84pt item
+    expect(st.left + st.width).toBeLessThan(79.5);
+    expect(st.top).toBeGreaterThan(0);
+  });
+
   it('uses overridden strings', async () => {
     await render(<StoryList />, {
       wrapper: wrap([kate], {

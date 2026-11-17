@@ -186,7 +186,12 @@ export function StoryBubble({
         </Text>
       </Pressable>
       {isSuggested && (
-        <DismissButton user={user} size={closeSize} style={dismissStyle} />
+        <DismissButton
+          user={user}
+          size={closeSize}
+          style={dismissStyle}
+          borderColor={isCard ? undefined : suggested.circle.closeBorder}
+        />
       )}
       {showFollow && (
         <FollowButton user={user} size={followSize} style={followStyle} />

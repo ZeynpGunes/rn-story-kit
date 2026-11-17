@@ -155,7 +155,12 @@ export interface StoryTheme {
       follow: { size: number; bg: string; icon: string; inset: number };
       close: { size: number; bg: string; icon: string; inset: number };
       /** Badge sizes on the circle variant (card uses `follow.size`/`close.size`). */
-      circle: { followSize: number; closeSize: number };
+      circle: {
+        followSize: number;
+        closeSize: number;
+        /** Ring colour around the X badge; match the list background. */
+        closeBorder: string;
+      };
     };
   };
   avatarPlaceholder: string;

@@ -84,7 +84,7 @@ const base: StoryTheme = {
     suggested: {
       follow: { size: 32, bg: '#FFFFFF', icon: '#111111', inset: 6 },
       close: { size: 28, bg: 'rgba(0,0,0,0.55)', icon: '#FFFFFF', inset: 6 },
-      circle: { followSize: 22, closeSize: 20 },
+      circle: { followSize: 22, closeSize: 20, closeBorder: '#FFFFFF' },
     },
   },
   avatarPlaceholder: '#E4E6EA',
@@ -146,6 +146,10 @@ export const darkTheme: StoryTheme = {
   list: {
     ...base.list,
     name: { ...base.list.name, color: '#F2F2F7', seenColor: '#9A9DA5' },
+    suggested: {
+      ...base.list.suggested,
+      circle: { ...base.list.suggested.circle, closeBorder: '#000000' },
+    },
   },
   avatarPlaceholder: '#2A2C31',
 };
