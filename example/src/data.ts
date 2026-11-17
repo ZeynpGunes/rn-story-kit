@@ -54,16 +54,43 @@ const video = (
 
 const avatar = (pic: number) => `https://picsum.photos/id/${pic}/200/200`;
 
+const people = [
+  { id: 'p1', name: 'maya', avatar: avatar(10) },
+  { id: 'p2', name: 'noah', avatar: avatar(15) },
+  { id: 'p3', name: 'omar', avatar: avatar(20) },
+  { id: 'p4', name: 'priya', avatar: avatar(28) },
+];
+
 export function makeUsers(): StoryUser[] {
+  const adaImage = image('ada', 1, 10, 5);
   return [
     {
       id: 'ada',
-      name: 'ada',
+      name: 'you (ada)',
       avatar: avatar(64),
+      isOwner: true,
       stories: [
-        image('ada', 1, 10, 5),
-        video('ada', 2, 'ForBiggerBlazes.mp4', 4),
-        image('ada', 3, 15, 3),
+        {
+          ...adaImage,
+          viewCount: 4,
+          likeCount: 2,
+          viewers: people,
+          likers: people.slice(0, 2),
+        },
+        {
+          ...video('ada', 2, 'ForBiggerBlazes.mp4', 4),
+          viewCount: 12,
+          likeCount: 5,
+          viewers: people,
+          likers: people.slice(1),
+        },
+        {
+          ...image('ada', 3, 15, 3),
+          viewCount: 0,
+          likeCount: 0,
+          viewers: [],
+          likers: [],
+        },
       ],
     },
     {
@@ -71,7 +98,10 @@ export function makeUsers(): StoryUser[] {
       name: 'bruno',
       avatar: avatar(65),
       ringVariant: 'ocean',
-      stories: [image('bruno', 1, 20, 40), image('bruno', 2, 28, 30)],
+      stories: [
+        { ...image('bruno', 1, 20, 40), liked: false },
+        { ...image('bruno', 2, 28, 30), liked: true },
+      ],
     },
     {
       id: 'chen',

@@ -27,6 +27,8 @@ export type {
   PaletteName,
   Rect,
   StoryItem,
+  StoryPerson,
   StoryTheme,
   StoryUser,
 } from './types';
+export type { StoryActionsConfig } from './config';

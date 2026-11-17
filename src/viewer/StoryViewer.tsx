@@ -42,6 +42,7 @@ import {
 } from '../provider/StoryProvider';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { Rect, StoryItem, StoryUser } from '../types';
+import { DefaultFooter } from './DefaultFooter';
 import { Header } from './Header';
 import { nextVideoTarget, preloadTargets, usePreload } from './media/preload';
 import { VideoSlotsProvider } from './media/videoSlots';
@@ -72,9 +73,14 @@ export function StoryViewer({
     renderFooter,
     renderOverlay,
     hasCustomHeader,
+    hasCustomFooter,
     hasFooter,
     hasOverlay,
     onActiveUserChange,
+    onLike,
+    onSendMessage,
+    onVoice,
+    onShare,
   } = useStoryContext();
   const theme = useStoryTheme();
   const insets = useSafeAreaInsets();
@@ -408,7 +414,22 @@ export function StoryViewer({
                 pointerEvents="box-none"
                 style={[styles.footer, { paddingBottom: insets.bottom }]}
               >
-                <SlotRenderer render={renderFooter} props={slotProps} />
+                {hasCustomFooter ? (
+                  <SlotRenderer render={renderFooter} props={slotProps} />
+                ) : (
+                  <DefaultFooter
+                    user={u}
+                    story={s}
+                    actions={config.actions}
+                    replyPlaceholder={config.replyPlaceholder}
+                    pause={pauseApi}
+                    resume={resumeApi}
+                    onLike={onLike}
+                    onSendMessage={onSendMessage}
+                    onVoice={onVoice}
+                    onShare={onShare}
+                  />
+                )}
               </View>
             </>
           )}
@@ -426,6 +447,7 @@ export function StoryViewer({
     },
     [
       hasCustomHeader,
+      hasCustomFooter,
       hasFooter,
       hasOverlay,
       renderHeader,
@@ -436,6 +458,12 @@ export function StoryViewer({
       resumeApi,
       insets.top,
       insets.bottom,
+      config.actions,
+      config.replyPlaceholder,
+      onLike,
+      onSendMessage,
+      onVoice,
+      onShare,
     ]
   );
 
