@@ -16,4 +16,6 @@ export const Circle = host('Circle');
 export const Defs = host('Defs');
 export const LinearGradient = host('LinearGradient');
 export const Stop = host('Stop');
+export const Rect = host('Rect');
+export const Path = host('Path');
 export default Svg;

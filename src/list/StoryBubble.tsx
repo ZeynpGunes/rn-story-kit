@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, type ComponentRef } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { measureWithTimeout } from '../provider/rectRegistry';
 import { useStoryContext } from '../provider/StoryProvider';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { Rect, StoryUser } from '../types';
@@ -14,7 +15,7 @@ export function StoryBubble({
   seen: boolean;
 }) {
   const theme = useStoryTheme();
-  const { registry, api, config } = useStoryContext();
+  const { registry, api, config, hiddenUserId } = useStoryContext();
   const ringRef = useRef<ComponentRef<typeof View>>(null);
   const { name } = theme.list;
 
@@ -34,14 +35,11 @@ export function StoryBubble({
   );
 
   const onPress = async () => {
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const timeout = new Promise<null>((resolve) => {
-      timer = setTimeout(resolve, config.motion.measureTimeoutMs, null);
-    });
-    const rect = await Promise.race([registry.measure(user.id), timeout]).catch(
-      () => null
+    const rect = await measureWithTimeout(
+      registry,
+      user.id,
+      config.motion.measureTimeoutMs
     );
-    clearTimeout(timer);
     api.open(user.id, rect ?? undefined);
   };
 
@@ -50,7 +48,12 @@ export function StoryBubble({
       accessibilityRole="button"
       accessibilityLabel={bubbleLabel(user.name, seen, user.stories.length)}
       onPress={onPress}
-      style={[styles.item, { width: theme.list.itemWidth }]}
+      testID={`bubble-${user.id}`}
+      style={[
+        styles.item,
+        { width: theme.list.itemWidth },
+        hiddenUserId === user.id && styles.hidden,
+      ]}
     >
       <View ref={ringRef} collapsable={false}>
         <StoryRing
@@ -80,4 +83,7 @@ export function StoryBubble({
   );
 }
 
-const styles = StyleSheet.create({ item: { alignItems: 'center' } });
+const styles = StyleSheet.create({
+  item: { alignItems: 'center' },
+  hidden: { opacity: 0 },
+});

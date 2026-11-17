@@ -19,3 +19,20 @@ export function createRectRegistry(): RectRegistry {
     },
   };
 }
+
+/** Measure a bubble, giving up (null) after timeoutMs. */
+export async function measureWithTimeout(
+  registry: RectRegistry,
+  userId: string,
+  timeoutMs: number
+): Promise<Rect | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<null>((resolve) => {
+    timer = setTimeout(resolve, timeoutMs, null);
+  });
+  const rect = await Promise.race([registry.measure(userId), timeout]).catch(
+    () => null
+  );
+  clearTimeout(timer);
+  return rect;
+}
