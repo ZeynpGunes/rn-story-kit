@@ -23,6 +23,8 @@ import type {
   StoryTheme,
   StoryUser,
 } from '../types';
+import { sortUsers, visibleUsers } from '../seen/selectors';
+import { StoryViewer } from '../viewer/StoryViewer';
 import { createRectRegistry, type RectRegistry } from './rectRegistry';
 
 export interface StorySlotProps {
@@ -69,8 +71,21 @@ export interface StoryContextValue {
   scheme: ColorScheme;
   store: SeenStore;
   registry: RectRegistry;
-  /** Open request; the overlay that consumes it arrives in Task 8. */
-  opened: { userId: string; rect?: Rect } | null;
+  /** Open viewer session; users is the ordered snapshot taken at open. */
+  opened: {
+    userId: string;
+    rect: Rect | null;
+    users: StoryUser[];
+    userIndex: number;
+  } | null;
+  /** Bubble to render invisible while the viewer is open. */
+  hiddenUserId: string | null;
+  /** Internal: the mounted viewer registers its close routine here. */
+  closerRef: { current: (() => void) | null };
+  /** Internal: stable; undefined when the app gave no renderHeader. */
+  renderHeader(p: StorySlotProps): ReactNode | undefined;
+  /** Internal: called by the viewer after its close animation ended. */
+  onViewerClosed(): void;
   api: StoryViewerApi;
   /** Stable; always calls the latest onEndReached prop. */
   onEndReached(): void;
@@ -132,16 +147,30 @@ export function StoryProvider(props: StoryProviderProps) {
 
   const [opened, setOpened] = useState<StoryContextValue['opened']>(null);
 
+  const mergedConfig = useMemo(
+    () => deepMerge(defaultConfig, config) as StoryConfig,
+    [config]
+  );
+
+  const openedRef = useRef(opened);
+  openedRef.current = opened;
+  const closerRef = useRef<(() => void) | null>(null);
+
   const api = useMemo<StoryViewerApi>(
     () => ({
       open: (userId, rect) => {
-        setOpened({ userId, rect });
+        if (openedRef.current) return;
+        const ordered = sortUsers(
+          visibleUsers(latest.current.users),
+          store,
+          mergedConfig.sortUnseenFirst
+        );
+        const userIndex = ordered.findIndex((u) => u.id === userId);
+        if (userIndex === -1) return;
+        setOpened({ userId, rect: rect ?? null, users: ordered, userIndex });
         latest.current.onOpen?.(userId);
       },
-      close: () => {
-        setOpened(null);
-        latest.current.onClose?.();
-      },
+      close: () => closerRef.current?.(),
       next: noop,
       prev: noop,
       pause: noop,
@@ -149,13 +178,18 @@ export function StoryProvider(props: StoryProviderProps) {
       goToUser: noop,
       isOpen: opened !== null,
     }),
-    [opened]
+    [opened, store, mergedConfig.sortUnseenFirst]
   );
 
-  const mergedConfig = useMemo(
-    () => deepMerge(defaultConfig, config) as StoryConfig,
-    [config]
+  const renderHeader = useCallback(
+    (p: StorySlotProps) => latest.current.renderHeader?.(p),
+    []
   );
+
+  const onViewerClosed = useCallback(() => {
+    setOpened(null);
+    latest.current.onClose?.();
+  }, []);
 
   const value = useMemo<StoryContextValue>(
     () => ({
@@ -165,15 +199,39 @@ export function StoryProvider(props: StoryProviderProps) {
       store,
       registry,
       opened,
+      hiddenUserId: opened?.userId ?? null,
+      closerRef,
+      renderHeader,
+      onViewerClosed,
       api,
       onEndReached,
     }),
-    [users, mergedConfig, scheme, store, registry, opened, api, onEndReached]
+    [
+      users,
+      mergedConfig,
+      scheme,
+      store,
+      registry,
+      opened,
+      renderHeader,
+      onViewerClosed,
+      api,
+      onEndReached,
+    ]
   );
 
   return (
     <StoryThemeProvider theme={theme} scheme={scheme}>
-      <StoryContext.Provider value={value}>{children}</StoryContext.Provider>
+      <StoryContext.Provider value={value}>
+        {children}
+        {opened && (
+          <StoryViewer
+            initialUserIndex={opened.userIndex}
+            sourceRect={opened.rect}
+            onClosed={onViewerClosed}
+          />
+        )}
+      </StoryContext.Provider>
     </StoryThemeProvider>
   );
 }

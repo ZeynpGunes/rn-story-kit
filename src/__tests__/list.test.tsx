@@ -92,7 +92,7 @@ describe('StoryList', () => {
     );
     await fireEvent.press(screen.getByLabelText('Ada, new story, 3 stories'));
     expect(onOpen).toHaveBeenCalledWith('ada');
-    expect(opened).toEqual({ userId: 'ada', rect });
+    expect(opened).toMatchObject({ userId: 'ada', rect });
   });
 
   it('labels new then seen and thins the seen ring', async () => {
@@ -160,13 +160,13 @@ describe('StoryList robustness', () => {
     expect(Date.now() - start).toBeGreaterThanOrEqual(140);
     await act(async () => {});
     expect(r.onOpen).toHaveBeenCalledWith('ada');
-    expect(r.get()).toEqual({ userId: 'ada', rect: undefined });
+    expect(r.get()).toMatchObject({ userId: 'ada', rect: null });
   });
 
   it('opens without rect when measure rejects', async () => {
     const r = await openWith(() => Promise.reject(new Error('boom')));
     await fireEvent.press(screen.getByLabelText('Ada, new story, 3 stories'));
-    expect(r.get()).toEqual({ userId: 'ada', rect: undefined });
+    expect(r.get()).toMatchObject({ userId: 'ada', rect: null });
   });
 
   it('calls the latest onEndReached after rerender', async () => {
