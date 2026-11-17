@@ -343,20 +343,20 @@ describe('slots', () => {
     );
 
   it('slot pause() and resume() hold and release progress', async () => {
-    let slot: StorySlotProps;
+    let api: StorySlotProps;
     await open('U1', [ada(), bob(), cy()], {
       renderFooter: (p: StorySlotProps) => {
-        slot = p;
+        api = p;
         return null;
       },
     });
     await display();
     await advance(1000);
-    await act(async () => slot.pause());
+    await act(async () => api.pause());
     const frozen = fillWidth();
     await advance(2000);
     expect(fillWidth()).toBe(frozen);
-    await act(async () => slot.resume());
+    await act(async () => api.resume());
     await advance(1000);
     expect(fillWidth()).not.toBe(frozen);
   });
