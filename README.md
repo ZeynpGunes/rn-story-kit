@@ -78,6 +78,13 @@ The viewer is an overlay rendered inside `StoryProvider` (no React Native `Modal
 ## Data model
 
 ```ts
+interface StoryPerson {
+  id: string;
+  name: string;
+  avatar: string;
+  following?: boolean; // false/omitted → Follow button in the people list
+}
+
 interface StoryUser {
   id: string;
   name: string;
@@ -85,6 +92,7 @@ interface StoryUser {
   stories: StoryItem[];
   ringVariant?: 'classic' | 'ocean' | 'sunset' | 'mono' | 'closeFriends';
   ringColors?: string[]; // custom ring gradient stops
+  isOwner?: boolean; // your row: shows view/like counts instead of the action bar
 }
 
 interface StoryItem {
@@ -99,6 +107,11 @@ interface StoryItem {
   seen?: boolean; // initial seen state
   createdAt?: number; // ms since epoch, shown as relative time in the header
   data?: unknown; // your own payload, passed back to slots
+  viewCount?: number; // owner insights
+  likeCount?: number;
+  viewers?: StoryPerson[]; // modal list when view count is tapped
+  likers?: StoryPerson[]; // modal list when like count is tapped
+  liked?: boolean; // whether *I* liked this story (others' stories)
 }
 ```
 
@@ -121,11 +134,23 @@ Users with no stories are hidden. Unseen users are sorted first.
 | `onClose` | `() => void` | Viewer closed. |
 | `onSwipeUp` | `(story, user) => void` | Swipe-up gesture committed. |
 | `onEndReached` | `() => void` | List scrolled to the end; load more users. |
+| `onLike` | `(story, user, nextLiked) => void` | Heart toggled on someone else's story. |
+| `onSendMessage` | `(story, user, text) => void` | Reply field submitted. |
+| `onVoice` | `(story, user) => void` | Mic pressed. |
+| `onShare` | `(story, user) => void` | Share / send pressed. |
+| `onFollow` | `(person) => void` | Follow pressed in the viewers / likers list. |
 | `renderHeader` | `(p: StorySlotProps) => ReactNode` | Replace the header. See below. |
-| `renderFooter` | `(p: StorySlotProps) => ReactNode` | Footer slot above the bottom edge. |
+| `renderFooter` | `(p: StorySlotProps) => ReactNode` | Replaces the default footer entirely. |
 | `renderOverlay` | `(p: StorySlotProps) => ReactNode` | Full-screen overlay slot. |
 
 `StorySlotProps` is `{ user, story, storyIndex, close(), pause(), resume() }`.
+
+### Default footer
+
+When you do not pass `renderFooter`, the viewer shows a built-in footer:
+
+- **Own story** (`user.isOwner`): view count and like count. Tap either to open a modal of `viewers` / `likers`. People with `following !== true` show a Follow button (`config.followLabel`, default `'Follow'`); handle it with `onFollow` and refresh `users`.
+- **Others**: message field, like, voice, and share. Toggle each with `config.actions` (all default `true`). Wire behaviour with `onLike`, `onSendMessage`, `onVoice`, and `onShare` — the library only draws the controls and pauses playback while the field is focused or the modal is open.
 
 ### Other exports
 
@@ -182,6 +207,9 @@ Pass `config` to `StoryProvider` to change behaviour. Defaults are in `defaultCo
 | `mediaErrorAdvanceMs` | `4000` | Wait after a media error before advancing to the next story. |
 | `autoAdvanceWithScreenReader` | `false` | Keep auto-advancing while a screen reader is on. |
 | `formatTime` | relative time | `(createdAt: number) => string`, replaces the header time label. |
+| `actions` | all `true` | `{ message, like, voice, share }` — which controls show on others' stories. |
+| `replyPlaceholder` | `'Send message...'` | Placeholder for the reply field. |
+| `followLabel` | `'Follow'` | Label for the Follow button in the people list. |
 | `motion` | see `defaultConfig` | Durations, springs and gesture thresholds. |
 
 ## Seen storage
@@ -216,7 +244,7 @@ yarn
 yarn example ios
 ```
 
-The example in `example/` has four screens: Feed (MMKV seen storage), Themes, CustomHeader (slots and `onSwipeUp`) and Perf (200 users and a button that blocks the JS thread). It needs a development build, not Expo Go. Run `node scripts/thumbhash.mjs` in `example/` to regenerate the sample thumbhashes.
+The example in `example/` has four screens: Feed (MMKV seen storage, owner insights, and the action bar), Themes, CustomHeader (slots and `onSwipeUp`) and Perf (200 users and a button that blocks the JS thread). It needs a development build, not Expo Go. Run `node scripts/thumbhash.mjs` in `example/` to regenerate the sample thumbhashes.
 
 ## Contributing
 
