@@ -1,5 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react-native';
-import type { ReactNode } from 'react';
+import { act } from '@testing-library/react-native';
+import { useState, type ReactNode } from 'react';
 import { StoryList } from '../list/StoryList';
 import { StoryProvider } from '../provider/StoryProvider';
 import type { StoryUser } from '../types';
@@ -119,5 +120,26 @@ describe('suggested bubbles (circle)', () => {
     expect(screen.getByLabelText('Takip et Kate')).toBeTruthy();
     expect(screen.getByLabelText('Önerme Kate')).toBeTruthy();
     expect(screen.getByLabelText('Kate, önerilen, 3')).toBeTruthy();
+  });
+});
+
+let setHostUsers: (users: StoryUser[]) => void;
+function Host({ initial }: { initial: StoryUser[] }) {
+  const [users, setUsers] = useState(initial);
+  setHostUsers = setUsers;
+  return (
+    <StoryProvider users={users} scheme="light">
+      <StoryList />
+    </StoryProvider>
+  );
+}
+
+describe('dismissed and followed state follows the users prop', () => {
+  it('shows a dismissed user again when sent with suggested: false', async () => {
+    await render(<Host initial={[ada, kate]} />);
+    await fireEvent.press(screen.getByLabelText("Don't suggest Kate"));
+    expect(screen.queryByTestId('bubble-kate')).toBeNull();
+    await act(async () => setHostUsers([ada, { ...kate, suggested: false }]));
+    expect(screen.getByTestId('bubble-kate')).toBeTruthy();
   });
 });

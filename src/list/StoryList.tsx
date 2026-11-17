@@ -1,7 +1,12 @@
 import { useMemo, type ReactElement } from 'react';
 import { FlatList, type ViewStyle } from 'react-native';
 import { useSeenVersion, useStoryContext } from '../provider/StoryProvider';
-import { isUserSeen, sortUsers, visibleUsers } from '../seen/selectors';
+import {
+  isUserSeen,
+  sortUsers,
+  visibleUsers,
+  withoutDismissed,
+} from '../seen/selectors';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { StoryListVariant } from '../config';
 import { StoryBubble } from './StoryBubble';
@@ -28,10 +33,7 @@ export function StoryList({
   const data = useMemo(
     () =>
       sortUsers(
-        visibleUsers(
-          users.filter((u) => !dismissedIds.has(u.id)),
-          config.ownerBubble
-        ),
+        visibleUsers(withoutDismissed(users, dismissedIds), config.ownerBubble),
         store,
         config.sortUnseenFirst,
         config.ownerBubble
