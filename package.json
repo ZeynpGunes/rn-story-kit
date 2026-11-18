@@ -46,14 +46,14 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/rn-story-kit/rn-story-kit.git"
+    "url": "git+https://github.com/ZeynpGunes/rn-story-kit.git"
   },
-  "author": "rn-story-kit contributors <noreply@example.com> (https://github.com/rn-story-kit)",
+  "author": "ZeynpGunes (https://github.com/ZeynpGunes)",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/rn-story-kit/rn-story-kit/issues"
+    "url": "https://github.com/ZeynpGunes/rn-story-kit/issues"
   },
-  "homepage": "https://github.com/rn-story-kit/rn-story-kit#readme",
+  "homepage": "https://github.com/ZeynpGunes/rn-story-kit#readme",
   "publishConfig": {
     "registry": "https://registry.npmjs.org/"
   },
