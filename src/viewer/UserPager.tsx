@@ -2,15 +2,13 @@ import {
   useCallback,
   useEffect,
   useLayoutEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
 } from 'react';
 import { StyleSheet, useWindowDimensions } from 'react-native';
-import {
-  useCompetingGestures,
-  usePanGesture,
-} from 'react-native-gesture-handler';
+import { Gesture } from 'react-native-gesture-handler';
 import Animated, {
   Easing,
   useAnimatedStyle,
@@ -40,7 +38,10 @@ import {
   type NavResult,
   type NavState,
 } from '../model/navigation';
-import { useStoryContext } from '../provider/StoryProvider';
+import {
+  useStoryContext,
+  type StorySlotProps,
+} from '../provider/StoryProvider';
 import type { StoryItem, StoryUser } from '../types';
 import { UserPage } from './UserPage';
 import { useViewerControls } from './viewerContext';
@@ -86,6 +87,12 @@ export interface UserPagerProps {
     storyIndex: number,
     active: boolean
   ): ReactNode;
+  /** Slot props for a page's custom content and media frame. */
+  slotPropsFor(
+    user: StoryUser,
+    story: StoryItem,
+    storyIndex: number
+  ): StorySlotProps;
 }
 
 /**
@@ -103,6 +110,7 @@ export function UserPager({
   onNav,
   onMediaFirstFrame,
   renderChrome,
+  slotPropsFor,
 }: UserPagerProps) {
   const { config, store, onSwipeUp } = useStoryContext();
   const { requestClose, isClosing, isTransitioning } = useViewerControls();
@@ -278,116 +286,169 @@ export function UserPager({
     fadeSide,
   ]);
 
-  const canGo = (direction: number) => {
-    'worklet';
-    return direction === 1
-      ? activeIndex.value < count - 1
-      : direction === -1 && activeIndex.value > 0;
-  };
-  const settleSpring: SpringConfig = {
-    damping: m.cubeSettleDamping,
-    stiffness: m.cubeSettleStiffness,
-    mass: m.cubeSettleMass,
-    overshootClamping: true,
-  };
-  const rubberSpring: SpringConfig = {
-    damping: m.rubberBandDamping,
-    stiffness: m.rubberBandStiffness,
-    mass: m.rubberBandMass,
-  };
-  const snapSpring: SpringConfig = {
-    damping: m.dismissSnapDamping,
-    stiffness: m.dismissSnapStiffness,
-    mass: m.dismissSnapMass,
-  };
+  const canGo = useCallback(
+    (direction: number) => {
+      'worklet';
+      return direction === 1
+        ? activeIndex.value < count - 1
+        : direction === -1 && activeIndex.value > 0;
+    },
+    [activeIndex, count]
+  );
+  const settleSpring = useMemo<SpringConfig>(
+    () => ({
+      damping: m.cubeSettleDamping,
+      stiffness: m.cubeSettleStiffness,
+      mass: m.cubeSettleMass,
+      overshootClamping: true,
+    }),
+    [m.cubeSettleDamping, m.cubeSettleStiffness, m.cubeSettleMass]
+  );
+  const rubberSpring = useMemo<SpringConfig>(
+    () => ({
+      damping: m.rubberBandDamping,
+      stiffness: m.rubberBandStiffness,
+      mass: m.rubberBandMass,
+    }),
+    [m.rubberBandDamping, m.rubberBandStiffness, m.rubberBandMass]
+  );
+  const snapSpring = useMemo<SpringConfig>(
+    () => ({
+      damping: m.dismissSnapDamping,
+      stiffness: m.dismissSnapStiffness,
+      mass: m.dismissSnapMass,
+    }),
+    [m.dismissSnapDamping, m.dismissSnapStiffness, m.dismissSnapMass]
+  );
 
-  const settle = (
-    to: number,
-    spring: SpringConfig,
-    done: (finished?: boolean) => void
-  ) => {
-    'worklet';
-    return reduced
-      ? withTiming(to, { duration: m.reducedSpringMs }, done)
-      : withSpring(to, spring, done);
-  };
-  const release = (finished?: boolean) => {
-    'worklet';
-    if (finished) dragging.value = false;
-  };
-  const startDrag = () => {
+  const settle = useCallback(
+    (to: number, spring: SpringConfig, done: (finished?: boolean) => void) => {
+      'worklet';
+      return reduced
+        ? withTiming(to, { duration: m.reducedSpringMs }, done)
+        : withSpring(to, spring, done);
+    },
+    [reduced, m.reducedSpringMs]
+  );
+  const release = useCallback(
+    (finished?: boolean) => {
+      'worklet';
+      if (finished) dragging.value = false;
+    },
+    [dragging]
+  );
+  const startDrag = useCallback(() => {
     'worklet';
     panIgnored.value = inputBlocked.value;
     if (!panIgnored.value) dragging.value = true;
     return !panIgnored.value;
-  };
-  const followX = (dx: number) => {
-    'worklet';
-    return canGo(dx < 0 ? 1 : -1)
-      ? Math.max(-width, Math.min(width, dx))
-      : rubberBand(dx, width, m.rubberBandFactor);
-  };
+  }, [panIgnored, inputBlocked, dragging]);
+  const followX = useCallback(
+    (dx: number) => {
+      'worklet';
+      return canGo(dx < 0 ? 1 : -1)
+        ? Math.max(-width, Math.min(width, dx))
+        : rubberBand(dx, width, m.rubberBandFactor);
+    },
+    [canGo, width, m.rubberBandFactor]
+  );
 
-  const panX = usePanGesture({
-    testID: 'story-pan-x',
-    activeOffsetX: [-m.panActiveOffsetX, m.panActiveOffsetX],
-    failOffsetY: [-m.panFailOffsetY, m.panFailOffsetY],
-    onActivate: (e) => {
-      'worklet';
-      if (startDrag()) offset.value = followX(e.translationX);
-    },
-    onUpdate: (e) => {
-      'worklet';
-      if (!panIgnored.value) offset.value = followX(e.translationX);
-    },
-    onDeactivate: (e) => {
-      'worklet';
-      if (panIgnored.value) return;
-      const dir = e.canceled
-        ? 0
-        : swipeDecision(e.translationX, e.velocityX, width, m);
-      if (dir !== 0 && canGo(dir)) {
-        isTransitioning.value = true;
-        offset.value = settle(-dir * width, settleSpring, (finished) => {
+  const panX = useMemo(
+    () =>
+      Gesture.Pan()
+        .withTestId('story-pan-x')
+        .activeOffsetX([-m.panActiveOffsetX, m.panActiveOffsetX])
+        .failOffsetY([-m.panFailOffsetY, m.panFailOffsetY])
+        .onStart((e) => {
           'worklet';
-          if (finished && handOver(dir)) scheduleOnRN(commitSwipe, dir);
-        });
-        return;
-      }
-      const atEdge = !canGo(e.translationX < 0 ? 1 : -1);
-      offset.value = settle(0, atEdge ? rubberSpring : settleSpring, release);
-    },
-  });
+          if (startDrag()) offset.value = followX(e.translationX);
+        })
+        .onUpdate((e) => {
+          'worklet';
+          if (!panIgnored.value) offset.value = followX(e.translationX);
+        })
+        .onEnd((e, success) => {
+          'worklet';
+          if (panIgnored.value) return;
+          const dir = success
+            ? swipeDecision(e.translationX, e.velocityX, width, m)
+            : 0;
+          if (dir !== 0 && canGo(dir)) {
+            isTransitioning.value = true;
+            offset.value = settle(-dir * width, settleSpring, (finished) => {
+              'worklet';
+              if (finished && handOver(dir)) scheduleOnRN(commitSwipe, dir);
+            });
+            return;
+          }
+          const atEdge = !canGo(e.translationX < 0 ? 1 : -1);
+          offset.value = settle(
+            0,
+            atEdge ? rubberSpring : settleSpring,
+            release
+          );
+        }),
+    [
+      m,
+      width,
+      startDrag,
+      followX,
+      canGo,
+      settle,
+      release,
+      handOver,
+      commitSwipe,
+      settleSpring,
+      rubberSpring,
+      offset,
+      panIgnored,
+      isTransitioning,
+    ]
+  );
 
-  const panY = usePanGesture({
-    testID: 'story-pan-y',
-    activeOffsetY: [-m.dismissActiveOffsetY, m.dismissActiveOffsetY],
-    onActivate: (e) => {
-      'worklet';
-      if (startDrag()) dragY.value = e.translationY;
-    },
-    onUpdate: (e) => {
-      'worklet';
-      if (!panIgnored.value) dragY.value = e.translationY;
-    },
-    onDeactivate: (e) => {
-      'worklet';
-      if (panIgnored.value) return;
-      const dy = e.translationY;
-      const vy = e.velocityY;
-      if (!e.canceled && dy > 0 && shouldDismiss(dy, vy, m)) {
-        // The viewer's close animation takes dragY back to 0.
-        scheduleOnRN(requestClose);
-        return;
-      }
-      if (!e.canceled && dy < 0 && shouldSwipeUp(dy, vy, m)) {
-        scheduleOnRN(swipeUp);
-      }
-      dragY.value = settle(0, snapSpring, release);
-    },
-  });
+  const panY = useMemo(
+    () =>
+      Gesture.Pan()
+        .withTestId('story-pan-y')
+        .activeOffsetY([-m.dismissActiveOffsetY, m.dismissActiveOffsetY])
+        .onStart((e) => {
+          'worklet';
+          if (startDrag()) dragY.value = e.translationY;
+        })
+        .onUpdate((e) => {
+          'worklet';
+          if (!panIgnored.value) dragY.value = e.translationY;
+        })
+        .onEnd((e, success) => {
+          'worklet';
+          if (panIgnored.value) return;
+          const dy = e.translationY;
+          const vy = e.velocityY;
+          if (success && dy > 0 && shouldDismiss(dy, vy, m)) {
+            // The viewer's close animation takes dragY back to 0.
+            scheduleOnRN(requestClose);
+            return;
+          }
+          if (success && dy < 0 && shouldSwipeUp(dy, vy, m)) {
+            scheduleOnRN(swipeUp);
+          }
+          dragY.value = settle(0, snapSpring, release);
+        }),
+    [
+      m,
+      startDrag,
+      settle,
+      release,
+      snapSpring,
+      requestClose,
+      swipeUp,
+      dragY,
+      panIgnored,
+    ]
+  );
 
-  const pagerGesture = useCompetingGestures(panX, panY);
+  // First pan to activate wins; the other is cancelled.
+  const pagerGesture = useMemo(() => Gesture.Race(panX, panY), [panX, panY]);
 
   return (
     <>
@@ -432,6 +493,7 @@ export function UserPager({
               restartToken={role === 0 ? nav.restarts : 0}
               onNav={onPageNav}
               onMediaFirstFrame={onMediaFirstFrame}
+              slotProps={slotPropsFor(user, story, storyIndex)}
             >
               {renderChrome(user, story, storyIndex, role === 0)}
             </UserPage>

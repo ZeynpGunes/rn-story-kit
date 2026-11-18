@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Image } from 'expo-image';
-import { createGestureController } from 'react-native-gesture-handler/jest-utils';
+import { createGestureController } from '../../__mocks__/gestureController';
 import {
   getAnimatedStyle,
   useSharedValue,
@@ -65,6 +65,16 @@ function Page(p: Partial<UserPageProps>) {
       held={heldSv}
       onNav={() => {}}
       onMediaFirstFrame={() => {}}
+      slotProps={{
+        user: ada,
+        story: ada.stories[0]!,
+        storyIndex: 0,
+        close: () => {},
+        insets: { top: 0, bottom: 0 },
+        headerTop: 0,
+        pause: () => {},
+        resume: () => {},
+      }}
       {...p}
     />
   );

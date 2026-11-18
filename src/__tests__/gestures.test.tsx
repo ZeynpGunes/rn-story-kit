@@ -7,7 +7,7 @@ import {
 } from '@testing-library/react-native';
 import { useState, type ReactNode } from 'react';
 import { Dimensions, Text } from 'react-native';
-import { createGestureController } from 'react-native-gesture-handler/jest-utils';
+import { createGestureController } from '../../__mocks__/gestureController';
 import { Easing, getAnimatedStyle } from 'react-native-reanimated';
 import { defaultConfig } from '../config';
 import { StoryList } from '../list/StoryList';

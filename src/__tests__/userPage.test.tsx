@@ -1,5 +1,5 @@
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
-import { createGestureController } from 'react-native-gesture-handler/jest-utils';
+import { createGestureController } from '../../__mocks__/gestureController';
 import {
   getAnimatedStyle,
   useSharedValue,
@@ -35,6 +35,17 @@ const bob: StoryUser = {
 };
 const users = [ada, bob];
 
+const slotProps = {
+  user: ada,
+  story: ada.stories[1]!,
+  storyIndex: 1,
+  close: () => {},
+  insets: { top: 0, bottom: 0 },
+  headerTop: 0,
+  pause: () => {},
+  resume: () => {},
+};
+
 let heldSv: SharedValue<boolean>;
 function Page(p: Partial<UserPageProps>) {
   heldSv = useSharedValue(false);
@@ -48,6 +59,7 @@ function Page(p: Partial<UserPageProps>) {
       held={heldSv}
       onNav={() => {}}
       onMediaFirstFrame={() => {}}
+      slotProps={slotProps}
       {...p}
     />
   );

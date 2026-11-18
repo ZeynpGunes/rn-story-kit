@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -12,11 +13,8 @@ import {
   type AccessibilityActionEvent,
 } from 'react-native';
 import {
+  Gesture,
   GestureDetector,
-  useCompetingGestures,
-  useExclusiveGestures,
-  useLongPressGesture,
-  useTapGesture,
   type ComposedGesture,
 } from 'react-native-gesture-handler';
 import Animated, {
@@ -33,7 +31,10 @@ import Animated, {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { scheduleOnRN } from 'react-native-worklets';
 import { tapNext, tapPrev, type NavResult } from '../model/navigation';
-import { useStoryContext } from '../provider/StoryProvider';
+import {
+  useStoryContext,
+  type StorySlotProps,
+} from '../provider/StoryProvider';
 import { useStoryTheme } from '../theme/StoryThemeProvider';
 import type { StoryItem, StoryUser } from '../types';
 import { LoadingIndicator } from './LoadingIndicator';
@@ -64,6 +65,8 @@ export interface UserPageProps {
   restartToken?: number;
   onNav(r: NavResult): void;
   onMediaFirstFrame(story: StoryItem): void;
+  /** Props handed to the app's `renderContent` and `renderMediaFrame`. */
+  slotProps: StorySlotProps;
   /** Chrome (scrim, header) drawn over the media; hidden while pressing. */
   children?: ReactNode;
 }
@@ -95,9 +98,11 @@ function StoryPage({
   chromeOpacity,
   onNav,
   onMediaFirstFrame,
+  slotProps,
   children,
 }: UserPageProps & { story: StoryItem }) {
-  const { config } = useStoryContext();
+  const { config, renderContent, renderMediaFrame, hideChrome } =
+    useStoryContext();
   const { motion, strings } = config;
   const a11yActions = [
     { name: 'next', label: strings.nextStory },
@@ -155,6 +160,16 @@ function StoryPage({
     held: timerHeld,
     onComplete: autoAdvance,
   });
+
+  // App-supplied media replaces ours and is ready from the first render.
+  const pageSlotProps = { ...slotProps, active: isActive };
+  const custom = renderContent(pageSlotProps);
+  const hasCustom = custom !== undefined;
+  useEffect(() => {
+    if (!hasCustom) return;
+    setReady(true);
+    mediaBlocked.value = false;
+  }, [hasCustom, mediaBlocked]);
 
   // A video needs its duration and a rendered first frame before it runs.
   const durationKnown = story.durationMs !== undefined || videoMs !== null;
@@ -217,49 +232,115 @@ function StoryPage({
   const hideMs = reduced ? motion.reducedUiFadeMs : motion.uiHideMs;
   const showMs = reduced ? motion.reducedUiFadeMs : motion.uiShowMs;
 
-  const longPress = useLongPressGesture({
-    testID: isActive ? 'story-long-press' : undefined,
-    minDuration: motion.longPressMs,
-    maxDistance: motion.longPressMaxDistance,
-    onActivate: () => {
-      'worklet';
-      if (inputBlocked?.value) return;
-      pressed.value = true;
-      cancelAnimation(progress);
-      uiOpacity.value = withTiming(0, {
-        duration: hideMs,
-        easing: Easing.out(Easing.cubic),
+  const gesture = useMemo(() => {
+    const longPress = Gesture.LongPress()
+      .minDuration(motion.longPressMs)
+      .maxDistance(motion.longPressMaxDistance)
+      .onStart(() => {
+        'worklet';
+        if (inputBlocked?.value) return;
+        pressed.value = true;
+        cancelAnimation(progress);
+        uiOpacity.value = withTiming(0, {
+          duration: hideMs,
+          easing: Easing.out(Easing.cubic),
+        });
+        scheduleOnRN(setUiHidden, true);
+      })
+      .onFinalize(() => {
+        'worklet';
+        if (!pressed.value) return;
+        pressed.value = false;
+        uiOpacity.value = withTiming(1, {
+          duration: showMs,
+          easing: Easing.out(Easing.cubic),
+        });
+        scheduleOnRN(setUiHidden, false);
       });
-      scheduleOnRN(setUiHidden, true);
-    },
-    onFinalize: () => {
-      'worklet';
-      if (!pressed.value) return;
-      pressed.value = false;
-      uiOpacity.value = withTiming(1, {
-        duration: showMs,
-        easing: Easing.out(Easing.cubic),
+    const tap = Gesture.Tap()
+      .maxDuration(motion.tapMaxDurationMs)
+      .maxDistance(motion.tapMaxDistance)
+      .onStart((e) => {
+        'worklet';
+        if (inputBlocked?.value) return;
+        scheduleOnRN(handleTapAt, e.x);
       });
-      scheduleOnRN(setUiHidden, false);
-    },
-  });
-  const tap = useTapGesture({
-    testID: isActive ? 'story-tap' : undefined,
-    maxDuration: motion.tapMaxDurationMs,
-    maxDistance: motion.tapMaxDistance,
-    onActivate: (e) => {
-      'worklet';
-      if (inputBlocked?.value) return;
-      scheduleOnRN(handleTapAt, e.x);
-    },
-  });
-  const pageGesture = useExclusiveGestures(longPress, tap);
-  const gesture = useCompetingGestures(
-    ...(pagerGesture ? [pagerGesture, pageGesture] : [pageGesture])
-  );
+    if (isActive) {
+      longPress.withTestId('story-long-press');
+      tap.withTestId('story-tap');
+    }
+    // The long-press has priority; the tap only runs if it fails.
+    const pageGesture = Gesture.Exclusive(longPress, tap);
+    // First gesture to activate wins (pager pans vs. tap/long-press).
+    return Gesture.Race(
+      ...(pagerGesture ? [pagerGesture, pageGesture] : [pageGesture])
+    );
+  }, [
+    motion.longPressMs,
+    motion.longPressMaxDistance,
+    motion.tapMaxDurationMs,
+    motion.tapMaxDistance,
+    isActive,
+    inputBlocked,
+    pressed,
+    progress,
+    uiOpacity,
+    hideMs,
+    showMs,
+    handleTapAt,
+    pagerGesture,
+  ]);
+  // Controlled content-only mode, on top of the long-press hide.
+  const chromeShown = useSharedValue(hideChrome ? 0 : 1);
+  useEffect(() => {
+    chromeShown.value = withTiming(hideChrome ? 0 : 1, {
+      duration: hideChrome ? hideMs : showMs,
+      easing: Easing.out(Easing.cubic),
+    });
+  }, [hideChrome, hideMs, showMs, chromeShown]);
   const uiStyle = useAnimatedStyle(() => ({
-    opacity: uiOpacity.value * (chromeOpacity?.value ?? 1),
+    opacity: uiOpacity.value * chromeShown.value * (chromeOpacity?.value ?? 1),
   }));
+
+  const media = hasCustom ? (
+    custom
+  ) : (
+    <>
+      {story.type === 'image' && !failed && (
+        <ImageMedia
+          story={story}
+          transitionMs={motion.thumbCrossfadeMs}
+          onDisplay={() => {
+            setReady(true);
+            mediaBlocked.value = false;
+          }}
+          onError={() => {
+            setFailed(true);
+            mediaBlocked.value = true;
+          }}
+        />
+      )}
+      {story.type === 'video' &&
+        !failed &&
+        (isActive ? (
+          <VideoMedia
+            story={story}
+            playing={!playbackHeld}
+            onFirstFrame={() => setReady(true)}
+            onBuffering={(b) => {
+              buffering.value = b;
+            }}
+            onDuration={(ms) => setVideoMs(ms)}
+            onError={() => {
+              setFailed(true);
+              mediaBlocked.value = true;
+            }}
+          />
+        ) : (
+          <VideoThumb story={story} />
+        ))}
+    </>
+  );
 
   return (
     <View style={styles.fill}>
@@ -272,45 +353,20 @@ function StoryPage({
           onAccessibilityAction={isActive ? onA11yAction : undefined}
         >
           <MediaBackground story={story} />
-          {story.type === 'image' && !failed && (
-            <ImageMedia
-              story={story}
-              transitionMs={motion.thumbCrossfadeMs}
-              onDisplay={() => {
-                setReady(true);
-                mediaBlocked.value = false;
-              }}
-              onError={() => {
-                setFailed(true);
-                mediaBlocked.value = true;
-              }}
-            />
-          )}
-          {story.type === 'video' &&
-            !failed &&
-            (isActive ? (
-              <VideoMedia
-                story={story}
-                playing={!playbackHeld}
-                onFirstFrame={() => setReady(true)}
-                onBuffering={(b) => {
-                  buffering.value = b;
-                }}
-                onDuration={(ms) => setVideoMs(ms)}
-                onError={() => {
-                  setFailed(true);
-                  mediaBlocked.value = true;
-                }}
-              />
-            ) : (
-              <VideoThumb story={story} />
-            ))}
+          <View
+            style={[
+              styles.fill,
+              config.mediaSafeAreaTop && { marginTop: insets.top },
+            ]}
+          >
+            {renderMediaFrame(media, pageSlotProps)}
+          </View>
           {showLoading && <LoadingIndicator />}
         </Animated.View>
       </GestureDetector>
       <Animated.View
         testID="story-ui"
-        pointerEvents={uiHidden ? 'none' : 'box-none'}
+        pointerEvents={uiHidden || hideChrome ? 'none' : 'box-none'}
         style={[StyleSheet.absoluteFill, uiStyle]}
       >
         {children}
