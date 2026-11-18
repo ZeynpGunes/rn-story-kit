@@ -65,17 +65,26 @@ export function tapPrev(
   };
 }
 
-/** Opening a user starts at the first unseen story (0 when all seen). */
+/**
+ * Opening a user starts at its `startIndex` when in range, else at the first
+ * unseen story (0 when all seen).
+ */
 export function enterUser(
   userIndex: number,
   users: StoryUser[],
   seen: SeenStore
 ): NavState {
   const user = users[userIndex];
-  return {
-    userIndex,
-    storyIndex: user ? firstUnseenIndex(user, seen) : 0,
-  };
+  if (!user) return { userIndex, storyIndex: 0 };
+  const start = user.startIndex;
+  const storyIndex =
+    start !== undefined &&
+    Number.isInteger(start) &&
+    start >= 0 &&
+    start < user.stories.length
+      ? start
+      : firstUnseenIndex(user, seen);
+  return { userIndex, storyIndex };
 }
 
 /** Horizontal swipe between users; null at either edge (never closes). */

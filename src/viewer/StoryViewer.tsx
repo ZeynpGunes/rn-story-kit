@@ -46,6 +46,7 @@ import { DefaultFooter } from './DefaultFooter';
 import { Header } from './Header';
 import { nextVideoTarget, preloadTargets, usePreload } from './media/preload';
 import { VideoSlotsProvider } from './media/videoSlots';
+import { useKeyboardHeight } from './useKeyboardHeight';
 import { userAnnouncement } from './a11y';
 import { BottomScrim, Scrim } from './Scrim';
 import { UserPager, type PagerCommands } from './UserPager';
@@ -77,6 +78,9 @@ export function StoryViewer({
     hasFooter,
     hasOverlay,
     onActiveUserChange,
+    onStoryChange,
+    onStoryStart,
+    muted,
     onLike,
     onSendMessage,
     onVoice,
@@ -281,11 +285,47 @@ export function StoryViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
+  // Fires when the active story or user changes, including the first open.
+  const storyId = story?.id;
+  useEffect(() => {
+    if (user && story) onStoryChange(story, user, nav.storyIndex);
+    // Not on restarts or unrelated renders: only a different story or user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId, storyId, onStoryChange]);
+
+  const current = useRef({ users, nav });
+  current.current = { users, nav };
   const onMediaFirstFrame = useCallback(
     (item: StoryItem) => {
       if (userId) store.markSeen(item.id, userId);
+      const c = current.current;
+      const u = c.users[c.nav.userIndex];
+      const index = u?.stories.findIndex((st) => st.id === item.id) ?? -1;
+      if (u && index !== -1) onStoryStart(item, u, index);
     },
-    [store, userId]
+    [store, userId, onStoryStart]
+  );
+
+  const slotPropsFor = useCallback(
+    (u: StoryUser, s: StoryItem, storyIndex: number): StorySlotProps => ({
+      user: u,
+      story: s,
+      storyIndex,
+      close: requestClose,
+      pause: pauseApi,
+      resume: resumeApi,
+      insets: { top: insets.top, bottom: insets.bottom },
+      headerTop: insets.top + theme.progress.topInset + theme.progress.height,
+    }),
+    [
+      requestClose,
+      pauseApi,
+      resumeApi,
+      insets.top,
+      insets.bottom,
+      theme.progress.topInset,
+      theme.progress.height,
+    ]
   );
 
   // Close shrinks back to the active user's bubble; that one is hidden.
@@ -381,18 +421,25 @@ export function StoryViewer({
     [requestClose, isClosing, isTransitioning]
   );
 
+  // Lift the footer with the keyboard; the safe-area padding it already has
+  // sits under the keyboard, so it is not lifted twice.
+  const keyboardHeight = useKeyboardHeight(config.footerKeyboardAvoiding);
+  const footerInset = config.footerSafeAreaInset ? insets.bottom : 0;
+  const footerPadStyle = useMemo(
+    () => ({ paddingBottom: footerInset }),
+    [footerInset]
+  );
+  const footerLiftStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: -Math.max(0, keyboardHeight.value - footerInset) },
+    ],
+  }));
+
   // Custom slots render for the active page only, each behind a component
   // boundary so their hooks stay isolated; neighbours show no custom slot.
   const renderChrome = useCallback(
     (u: StoryUser, s: StoryItem, storyIndex: number, active: boolean) => {
-      const slotProps: StorySlotProps = {
-        user: u,
-        story: s,
-        storyIndex,
-        close: requestClose,
-        pause: pauseApi,
-        resume: resumeApi,
-      };
+      const slotProps = slotPropsFor(u, s, storyIndex);
       const defaultHeader = (
         <Header
           user={u}
@@ -416,10 +463,10 @@ export function StoryViewer({
           {active && hasFooter && (
             <>
               <BottomScrim />
-              <View
+              <Animated.View
                 testID="story-footer"
                 pointerEvents="box-none"
-                style={[styles.footer, { paddingBottom: insets.bottom }]}
+                style={[styles.footer, footerPadStyle, footerLiftStyle]}
               >
                 {hasCustomFooter ? (
                   <SlotRenderer render={renderFooter} props={slotProps} />
@@ -437,7 +484,7 @@ export function StoryViewer({
                     onFollow={onFollow}
                   />
                 )}
-              </View>
+              </Animated.View>
             </>
           )}
           {!hasCustomHeader ? (
@@ -461,10 +508,12 @@ export function StoryViewer({
       renderFooter,
       renderOverlay,
       requestClose,
+      slotPropsFor,
       pauseApi,
       resumeApi,
+      footerLiftStyle,
       insets.top,
-      insets.bottom,
+      footerPadStyle,
       config.actions,
       onLike,
       onSendMessage,
@@ -499,7 +548,7 @@ export function StoryViewer({
         ]}
       >
         <Animated.View style={[styles.fill, contentStyle]}>
-          <VideoSlotsProvider active={story} next={nextVideo}>
+          <VideoSlotsProvider active={story} next={nextVideo} muted={muted}>
             <UserPager
               users={users}
               nav={nav}
@@ -511,6 +560,7 @@ export function StoryViewer({
               onNav={onNav}
               onMediaFirstFrame={onMediaFirstFrame}
               renderChrome={renderChrome}
+              slotPropsFor={slotPropsFor}
             />
           </VideoSlotsProvider>
         </Animated.View>

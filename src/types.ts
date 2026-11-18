@@ -49,6 +49,13 @@ export interface StoryUser {
   suggested?: boolean;
   /** Image shown on a card bubble. Falls back to `avatar`. */
   cover?: string;
+  /** App data, passed through untouched (like `StoryItem.data`). */
+  data?: unknown;
+  /**
+   * Story index to start at when this user is opened, instead of the first
+   * unseen one. Ignored when out of range.
+   */
+  startIndex?: number;
 }
 
 export interface Rect {

@@ -35,6 +35,16 @@ export interface StoryConfig {
   formatTime?: (createdAt: number) => string;
   /** Which action-bar controls to show on others' stories. All default true. */
   actions: StoryActionsConfig;
+  /** Pad the footer by the bottom safe-area inset. Default true. */
+  footerSafeAreaInset: boolean;
+  /**
+   * Start the media area (the frame `renderMediaFrame` wraps) below the top
+   * safe-area inset instead of at y=0. The blurred backdrop, progress bar
+   * and chrome stay full-bleed. Default false.
+   */
+  mediaSafeAreaTop: boolean;
+  /** Lift the footer with the keyboard. Default false. */
+  footerKeyboardAvoiding: boolean;
   /** Own-story bubble in the list. */
   ownerBubble: StoryOwnerBubbleConfig;
   /** List defaults; `StoryList` props win. */
@@ -111,6 +121,9 @@ export const defaultConfig: StoryConfig = {
   autoAdvanceWithScreenReader: false,
   mediaErrorAdvanceMs: 4000,
   actions: { message: true, like: true, voice: true, share: true },
+  footerSafeAreaInset: true,
+  mediaSafeAreaTop: false,
+  footerKeyboardAvoiding: false,
   ownerBubble: { show: true, pinFirst: true, showAddWhenEmpty: true },
   list: { variant: 'circle' },
   strings: defaultStrings,

@@ -36,7 +36,18 @@ export interface StorySlotProps {
   close(): void;
   pause(): void;
   resume(): void;
+  /** Safe-area insets of the viewer. */
+  insets: { top: number; bottom: number };
+  /**
+   * Y just below the progress bar. A custom header that should sit where the
+   * default one does is offset by this value (the default header adds
+   * `theme.header.marginTop` on top).
+   */
+  headerTop: number;
 }
+
+/** Slot props plus whether the page is the active one (not a neighbour). */
+export type StoryPageSlotProps = StorySlotProps & { active: boolean };
 
 export interface StoryProviderProps {
   users: StoryUser[];
@@ -63,6 +74,26 @@ export interface StoryProviderProps {
   renderHeader?(p: StorySlotProps): ReactNode;
   renderFooter?(p: StorySlotProps): ReactNode;
   renderOverlay?(p: StorySlotProps): ReactNode;
+  /**
+   * Replaces a story's media. Return `undefined` to keep the built-in media.
+   * Called while the page renders: no hooks, return elements. A story with
+   * custom content counts as ready at once, so its timer starts immediately.
+   */
+  renderContent?(p: StoryPageSlotProps): ReactNode | undefined;
+  /**
+   * Wraps the media area of every page (active and neighbours), e.g. to add
+   * overlay layers or pinch-to-zoom. Return a stable element type: a changing
+   * type remounts the media and restarts video.
+   */
+  renderMediaFrame?(media: ReactNode, p: StoryPageSlotProps): ReactNode;
+  /** Mute every video. Default false. */
+  muted?: boolean;
+  /** Content-only mode: hide header, footer, progress and actions. Default false. */
+  hideChrome?: boolean;
+  /** The active story or user changed, including the first open. */
+  onStoryChange?(story: StoryItem, user: StoryUser, storyIndex: number): void;
+  /** The active story's media is ready (first frame); fires on every view. */
+  onStoryStart?(story: StoryItem, user: StoryUser, storyIndex: number): void;
   children: ReactNode;
 }
 
@@ -137,6 +168,15 @@ export interface StoryContextValue {
   hasCustomHeader: boolean;
   /** Internal: whether the app gave a renderFooter (replaces the default). */
   hasCustomFooter: boolean;
+  /** Internal: stable; the app's custom media for a story, or undefined. */
+  renderContent(p: StoryPageSlotProps): ReactNode | undefined;
+  /** Internal: stable; the app's media frame, or the media unchanged. */
+  renderMediaFrame(media: ReactNode, p: StoryPageSlotProps): ReactNode;
+  muted: boolean;
+  hideChrome: boolean;
+  /** Internal: stable; always call the latest props. */
+  onStoryChange(story: StoryItem, user: StoryUser, storyIndex: number): void;
+  onStoryStart(story: StoryItem, user: StoryUser, storyIndex: number): void;
   /** Internal: called by the viewer after its close animation ended. */
   onViewerClosed(): void;
   api: StoryViewerApi;
@@ -355,6 +395,30 @@ export function StoryProvider(props: StoryProviderProps) {
     []
   );
 
+  const renderContent = useCallback(
+    (p: StoryPageSlotProps) => latest.current.renderContent?.(p),
+    []
+  );
+  const renderMediaFrame = useCallback(
+    (media: ReactNode, p: StoryPageSlotProps) =>
+      latest.current.renderMediaFrame
+        ? latest.current.renderMediaFrame(media, p)
+        : media,
+    []
+  );
+  const onStoryChange = useCallback(
+    (story: StoryItem, user: StoryUser, storyIndex: number) =>
+      latest.current.onStoryChange?.(story, user, storyIndex),
+    []
+  );
+  const onStoryStart = useCallback(
+    (story: StoryItem, user: StoryUser, storyIndex: number) =>
+      latest.current.onStoryStart?.(story, user, storyIndex),
+    []
+  );
+  const muted = props.muted ?? false;
+  const hideChrome = props.hideChrome ?? false;
+
   const hasCustomHeader = props.renderHeader !== undefined;
   const hasCustomFooter = props.renderFooter !== undefined;
   const hasFooter =
@@ -398,6 +462,12 @@ export function StoryProvider(props: StoryProviderProps) {
       hasOverlay,
       hasCustomHeader,
       hasCustomFooter,
+      renderContent,
+      renderMediaFrame,
+      muted,
+      hideChrome,
+      onStoryChange,
+      onStoryStart,
       onViewerClosed,
       api,
       onEndReached,
@@ -428,6 +498,12 @@ export function StoryProvider(props: StoryProviderProps) {
       hasOverlay,
       hasCustomHeader,
       hasCustomFooter,
+      renderContent,
+      renderMediaFrame,
+      muted,
+      hideChrome,
+      onStoryChange,
+      onStoryStart,
       onViewerClosed,
       api,
       onEndReached,

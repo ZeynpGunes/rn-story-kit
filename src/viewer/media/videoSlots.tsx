@@ -42,6 +42,8 @@ export interface VideoSlotsProviderProps {
   active: StoryItem | undefined;
   /** Next video to preload, if any. */
   next: StoryItem | undefined;
+  /** Mute both players. Default false. */
+  muted?: boolean;
   children?: ReactNode;
 }
 
@@ -53,12 +55,19 @@ export interface VideoSlotsProviderProps {
 export function VideoSlotsProvider({
   active,
   next,
+  muted = false,
   children,
 }: VideoSlotsProviderProps) {
   // Fixed hook count: the cap is structural.
   const slotA = useVideoPlayer(null);
   const slotB = useVideoPlayer(null);
   const players = useMemo(() => [slotA, slotB], [slotA, slotB]);
+
+  useEffect(() => {
+    players.forEach((player) => {
+      player.muted = muted;
+    });
+  }, [players, muted]);
 
   const assigned = useRef<(StoryItem | null)[]>(
     Array<StoryItem | null>(SLOT_COUNT).fill(null)

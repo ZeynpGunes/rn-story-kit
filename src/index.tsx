@@ -1,5 +1,6 @@
 export { StoryProvider } from './provider/StoryProvider';
 export type {
+  StoryPageSlotProps,
   StoryProviderProps,
   StorySlotProps,
   StoryViewerApi,

@@ -126,3 +126,31 @@ describe('reconcileNavState', () => {
     ).toBeNull();
   });
 });
+
+describe('StoryUser.startIndex', () => {
+  const withStart = (startIndex: number | undefined): StoryUser[] => [
+    { ...mkUser('U0', 3), startIndex },
+    mkUser('U1', 2),
+  ];
+  const seenAll = () =>
+    new SeenStore({ initialSeen: ['U0s0', 'U0s1', 'U1s0'] });
+
+  it('opens at startIndex instead of the first unseen story', () => {
+    expect(enterUser(0, withStart(2), unseen())).toEqual(nav(0, 2));
+    expect(enterUser(0, withStart(0), seenAll())).toEqual(nav(0, 0));
+  });
+  it('falls back to the first unseen story when out of range or invalid', () => {
+    const store = new SeenStore({ initialSeen: ['U0s0'] });
+    for (const bad of [3, -1, 1.5, NaN, undefined]) {
+      expect(enterUser(0, withStart(bad), store)).toEqual(nav(0, 1));
+    }
+  });
+  it('applies on a swipe into the user', () => {
+    const us = [mkUser('U0', 2), { ...mkUser('U1', 3), startIndex: 1 }];
+    expect(swipeToUser(nav(0, 0), 1, us, unseen())).toEqual({
+      kind: 'user',
+      direction: 1,
+      state: nav(1, 1),
+    });
+  });
+});

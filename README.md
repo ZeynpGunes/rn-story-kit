@@ -15,7 +15,7 @@ npm install react-native-reanimated react-native-worklets react-native-gesture-h
   react-native-svg react-native-safe-area-context expo-image expo-video
 ```
 
-Peer dependencies: `react-native-reanimated >=4.1.0`, `react-native-worklets >=0.5.0`, `react-native-gesture-handler >=3.0.0`, `react-native-svg >=15.0.0`, `react-native-safe-area-context >=5.0.0`, `expo-image`, `expo-video`. MMKV and AsyncStorage are not peers (see [Seen storage](#seen-storage)).
+Peer dependencies: `react-native-reanimated >=4.1.0`, `react-native-worklets >=0.5.0`, `react-native-gesture-handler >=2.20.0`, `react-native-svg >=15.0.0`, `react-native-safe-area-context >=5.0.0`, `expo-image`, `expo-video`. MMKV and AsyncStorage are not peers (see [Seen storage](#seen-storage)).
 
 Add the worklets Babel plugin, last in the plugin list (`babel-preset-expo` adds it for you in Expo projects):
 
@@ -95,6 +95,8 @@ interface StoryUser {
   isOwner?: boolean; // your row: shows view/like counts instead of the action bar
   suggested?: boolean; // someone you do not follow: shows follow and dismiss buttons
   cover?: string; // card variant image; falls back to avatar
+  data?: unknown; // your own payload, passed back untouched
+  startIndex?: number; // open at this story instead of the first unseen one (ignored when out of range)
 }
 
 interface StoryItem {
@@ -146,6 +148,12 @@ Users with no stories are hidden. Unseen users are sorted first.
 | `renderHeader` | `(p: StorySlotProps) => ReactNode` | Replace the header. See below. |
 | `renderFooter` | `(p: StorySlotProps) => ReactNode` | Replaces the default footer entirely. |
 | `renderOverlay` | `(p: StorySlotProps) => ReactNode` | Full-screen overlay slot. |
+| `renderContent` | `(p: StorySlotProps & { active: boolean }) => ReactNode \| undefined` | Replaces the media of a story. See [Custom media](#custom-media). |
+| `renderMediaFrame` | `(media: ReactNode, p: StorySlotProps & { active: boolean }) => ReactNode` | Wraps the media area of every page. See [Custom media](#custom-media). |
+| `muted` | `boolean` | Default `false`. Mutes every video; reactive. |
+| `hideChrome` | `boolean` | Default `false`. Content-only mode: hides header, footer, progress bar and actions (also from touches). Combines with the built-in long-press hide. |
+| `onStoryChange` | `(story, user, storyIndex) => void` | The active story or user changed, including the first open. |
+| `onStoryStart` | `(story, user, storyIndex) => void` | The active story's media is ready (first frame). Fires on every view, unlike `onSeen`. |
 
 `StorySlotProps` is `{ user, story, storyIndex, close(), pause(), resume() }`.
 
@@ -205,6 +213,27 @@ If your slot has its own interaction (a text input, a menu, a long press), call 
 >
 ```
 
+### Custom media
+
+`renderContent` replaces the media of a story. Return `undefined` to keep the built-in image or video:
+
+```tsx
+<StoryProvider
+  users={users}
+  renderContent={({ story, active }) =>
+    story.data?.kind === 'poll' ? <Poll story={story} live={active} /> : undefined
+  }
+>
+```
+
+It is called while the page renders, so do not call hooks in it; return elements. A story with custom content counts as ready at once: its timer starts immediately and `onSeen` / `onStoryStart` fire. Its duration is `durationMs` or `config.imageDurationMs`.
+
+`renderMediaFrame` wraps the media area of every page, active and neighbours, for overlay layers or pinch-to-zoom. Return a **stable element type**: a wrapper whose type changes between renders remounts the media and restarts the video.
+
+```tsx
+renderMediaFrame={(media, { active }) => <ZoomFrame enabled={active}>{media}</ZoomFrame>}
+```
+
 ## Theming
 
 ```tsx
@@ -232,6 +261,8 @@ Pass `config` to `StoryProvider` to change behaviour. Defaults are in `defaultCo
 | `autoAdvanceWithScreenReader` | `false` | Keep auto-advancing while a screen reader is on. |
 | `formatTime` | relative time | `(createdAt: number) => string`, replaces the header time label. |
 | `actions` | all `true` | `{ message, like, voice, share }` — which controls show on others' stories. |
+| `footerSafeAreaInset` | `true` | Pad the footer by the bottom safe-area inset. `false` removes that padding. |
+| `footerKeyboardAvoiding` | `false` | Lift the footer with the keyboard (React Native `Keyboard` events). |
 | `list` | `{ variant: 'circle' }` | Default bubble shape: `'circle'` or `'card'`. The `StoryList` `variant` prop wins. |
 | `ownerBubble` | see below | Own-story row in the list (`show`, `pinFirst`, `showAddWhenEmpty`). |
 | `strings` | `defaultStrings` | UI + accessibility copy. See [Strings (i18n)](#strings-i18n). |
