@@ -109,8 +109,19 @@ export function VideoMedia({
     else player.pause();
   }, [player, playing]);
 
-  // The slot outlives this view; never leave it playing.
-  useEffect(() => () => player?.pause(), [player]);
+  // The slot outlives this view; never leave it playing. When the whole viewer
+  // unmounts, the provider releases the player before this cleanup runs, and
+  // calling into a released shared object throws.
+  useEffect(
+    () => () => {
+      try {
+        player?.pause();
+      } catch {
+        // Already released: nothing left to pause.
+      }
+    },
+    [player]
+  );
 
   const fadeTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(fadeTimer.current), []);
