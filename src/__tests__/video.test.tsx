@@ -1,3 +1,4 @@
+import { Platform } from 'react-native';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 import { Image } from 'expo-image';
 import { createGestureController } from '../../__mocks__/gestureController';
@@ -320,6 +321,39 @@ describe('player cap', () => {
     await r.rerender(view(v2, undefined));
     expect(__players).toHaveLength(2);
     expect(playerFor(v2)).toBe(preloaded);
+  });
+});
+
+describe('preload surface', () => {
+  const view = (active: StoryItem, next?: StoryItem) => (
+    <StoryProvider users={users} scheme="dark">
+      <VideoSlotsProvider active={active} next={next}>
+        <Page storyIndex={active === v1 ? 0 : 1} />
+      </VideoSlotsProvider>
+    </StoryProvider>
+  );
+
+  const setOS = (os: 'ios' | 'android') =>
+    Object.defineProperty(Platform, 'OS', { value: os, configurable: true });
+  const realOS = Platform.OS;
+  afterEach(() => setOS(realOS as 'ios' | 'android'));
+
+  it('does not add a hidden view on iOS', async () => {
+    setOS('ios');
+    await render(view(v1, v2));
+    expect(screen.queryAllByTestId('story-video-preload')).toHaveLength(0);
+  });
+
+  it('parks the preloaded player on a hidden view until it is active', async () => {
+    setOS('android');
+    const r = await render(view(v1, v2));
+    const hidden = screen.getAllByTestId('story-video-preload');
+    expect(hidden).toHaveLength(1);
+    expect(hidden[0]!.props.player).toBe(playerFor(v2));
+    expect(screen.getAllByTestId('story-video')).toHaveLength(1);
+    await r.rerender(view(v2, undefined));
+    expect(screen.queryAllByTestId('story-video-preload')).toHaveLength(0);
+    expect(screen.getAllByTestId('story-video')).toHaveLength(1);
   });
 });
 

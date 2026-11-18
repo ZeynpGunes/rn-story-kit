@@ -1,4 +1,4 @@
-import { useVideoPlayer, type VideoPlayer } from 'expo-video';
+import { useVideoPlayer, VideoView, type VideoPlayer } from 'expo-video';
 import {
   createContext,
   useContext,
@@ -8,6 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
+import { Platform, StyleSheet } from 'react-native';
 import type { StoryItem } from '../../types';
 
 /** Hard cap on live players: the active story plus one preloaded video. */
@@ -22,6 +23,10 @@ export interface VideoSlot {
    */
   loadedDuration: number | null;
 }
+
+const styles = StyleSheet.create({
+  preload: { position: 'absolute', width: 1, height: 1, opacity: 0 },
+});
 
 const SlotsContext = createContext<ReadonlyMap<string, VideoSlot>>(new Map());
 
@@ -145,5 +150,34 @@ export function VideoSlotsProvider({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadedKey, players]);
 
-  return <SlotsContext.Provider value={map}>{children}</SlotsContext.Provider>;
+  // A player preloaded with no VideoView decodes against expo-video's
+  // placeholder surface; once the page's VideoView takes it over, Android
+  // plays on with a black picture (first frame and playback both report
+  // fine). Parking it on a hidden 1x1 view keeps a real surface from the
+  // start; the page's view then takes over from that. Seen on Android only,
+  // so iOS keeps a single view per player.
+  const preloading =
+    Platform.OS === 'android'
+      ? kept.flatMap((s, i) =>
+          s && s.id !== active?.id && players[i]
+            ? [{ i, player: players[i] }]
+            : []
+        )
+      : [];
+
+  return (
+    <SlotsContext.Provider value={map}>
+      {children}
+      {preloading.map(({ i, player }) => (
+        <VideoView
+          key={i}
+          testID="story-video-preload"
+          player={player}
+          nativeControls={false}
+          pointerEvents="none"
+          style={styles.preload}
+        />
+      ))}
+    </SlotsContext.Provider>
+  );
 }
