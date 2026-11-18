@@ -459,10 +459,10 @@ export function StoryViewer({
               <SlotRenderer render={renderOverlay} props={slotProps} />
             </View>
           )}
-          <Scrim safeAreaTop={insets.top} />
+          {config.scrims && <Scrim safeAreaTop={insets.top} />}
           {active && hasFooter && (
             <>
-              <BottomScrim />
+              {config.scrims && <BottomScrim />}
               <Animated.View
                 testID="story-footer"
                 pointerEvents="box-none"
@@ -515,6 +515,7 @@ export function StoryViewer({
       insets.top,
       footerPadStyle,
       config.actions,
+      config.scrims,
       onLike,
       onSendMessage,
       onVoice,

@@ -8,6 +8,7 @@ export function Scrim({ safeAreaTop }: { safeAreaTop: number }) {
   const id = `topScrim${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   return (
     <Svg
+      testID="story-scrim-top"
       pointerEvents="none"
       style={[styles.scrim, { height: safeAreaTop + 96 }]}
       width="100%"
@@ -41,6 +42,7 @@ export function BottomScrim() {
   const id = `bottomScrim${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   return (
     <Svg
+      testID="story-scrim-bottom"
       pointerEvents="none"
       style={styles.bottomScrim}
       width="100%"

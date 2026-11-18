@@ -45,6 +45,11 @@ export interface StoryConfig {
   mediaSafeAreaTop: boolean;
   /** Lift the footer with the keyboard. Default false. */
   footerKeyboardAvoiding: boolean;
+  /**
+   * Draw the dark top and bottom scrims that keep the chrome readable over
+   * bright media. Default true.
+   */
+  scrims: boolean;
   /** Own-story bubble in the list. */
   ownerBubble: StoryOwnerBubbleConfig;
   /** List defaults; `StoryList` props win. */
@@ -124,6 +129,7 @@ export const defaultConfig: StoryConfig = {
   footerSafeAreaInset: true,
   mediaSafeAreaTop: false,
   footerKeyboardAvoiding: false,
+  scrims: true,
   ownerBubble: { show: true, pinFirst: true, showAddWhenEmpty: true },
   list: { variant: 'circle' },
   strings: defaultStrings,

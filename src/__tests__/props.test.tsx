@@ -254,6 +254,20 @@ describe('StoryUser', () => {
   });
 });
 
+describe('scrims', () => {
+  const withFooter = { renderFooter: () => <Text>f</Text> };
+  it('draws the top and bottom scrims by default', async () => {
+    await open(withFooter);
+    expect(screen.getAllByTestId('story-scrim-top').length).toBeGreaterThan(0);
+    expect(screen.getByTestId('story-scrim-bottom')).toBeTruthy();
+  });
+  it('scrims false draws neither', async () => {
+    await open({ ...withFooter, config: { scrims: false } });
+    expect(screen.queryAllByTestId('story-scrim-top')).toHaveLength(0);
+    expect(screen.queryByTestId('story-scrim-bottom')).toBeNull();
+  });
+});
+
 describe('footer config', () => {
   const footer = () => screen.getByTestId('story-footer');
   const withActions = { renderFooter: () => <Text>f</Text> };

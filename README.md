@@ -263,6 +263,7 @@ Pass `config` to `StoryProvider` to change behaviour. Defaults are in `defaultCo
 | `actions` | all `true` | `{ message, like, voice, share }` — which controls show on others' stories. |
 | `footerSafeAreaInset` | `true` | Pad the footer by the bottom safe-area inset. `false` removes that padding. |
 | `footerKeyboardAvoiding` | `false` | Lift the footer with the keyboard (React Native `Keyboard` events). |
+| `scrims` | `true` | Draw the dark top and bottom scrims behind the chrome. Set `false` for none. |
 | `list` | `{ variant: 'circle' }` | Default bubble shape: `'circle'` or `'card'`. The `StoryList` `variant` prop wins. |
 | `ownerBubble` | see below | Own-story row in the list (`show`, `pinFirst`, `showAddWhenEmpty`). |
 | `strings` | `defaultStrings` | UI + accessibility copy. See [Strings (i18n)](#strings-i18n). |
