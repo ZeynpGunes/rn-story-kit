@@ -29,6 +29,7 @@ import {
   shouldDismiss,
   shouldSwipeUp,
   swipeDecision,
+  type TransformEntry,
 } from '../model/gestureMath';
 import {
   enterUser,
@@ -522,7 +523,7 @@ interface PagerSlotProps {
 }
 
 /** Puts the page's layout offset right after the leading perspective. */
-const place = (t: object[], translateX: number) => {
+const place = (t: TransformEntry[], translateX: number) => {
   'worklet';
   return [t[0]!, { translateX }, ...t.slice(1)];
 };

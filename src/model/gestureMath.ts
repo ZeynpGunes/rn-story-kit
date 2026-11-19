@@ -1,7 +1,15 @@
+import type { TransformsStyle } from 'react-native';
+
 import { defaultConfig, type StoryConfig } from '../config';
 import type { Rect } from '../types';
 
 type Motion = StoryConfig['motion'];
+
+/** One entry of a style `transform` array. */
+export type TransformEntry = Exclude<
+  TransformsStyle['transform'],
+  string | undefined
+>[number];
 
 const clamp = (v: number, lo: number, hi: number) => {
   'worklet';
@@ -73,7 +81,7 @@ export function cubeTransform(
   side: 'outgoing' | 'incoming',
   perspective: number,
   m: Motion = defaultConfig.motion
-): { transform: object[]; shadeOpacity: number } {
+): { transform: TransformEntry[]; shadeOpacity: number } {
   'worklet';
   const q = clamp(p, -1, 1);
   const s = q < 0 ? -1 : 1;
